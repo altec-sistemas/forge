@@ -5,12 +5,12 @@ import 'package:forge_core/forge_core.dart';
 abstract class Application extends BaseKernel {
   factory Application([String? env]) => _ApplicationImpl(env ?? 'prod');
 
-  /// Instância global do Application
+  /// Global Application instance.
   static Application? _instance;
 
-  /// Acessa a instância global do Application
+  /// Accesses the global Application instance.
   ///
-  /// Throws [KernelException] se o Application ainda não foi criado
+  /// Throws [KernelException] if the Application has not been created yet.
   static Application get instance {
     if (_instance == null) {
       throw KernelException(
@@ -21,7 +21,7 @@ abstract class Application extends BaseKernel {
     return _instance!;
   }
 
-  /// Verifica se o Application já foi inicializado
+  /// Checks if the Application has already been initialized.
   static bool get hasInstance => _instance != null;
 
   Future<void> run(Widget Function(Injector i) main);

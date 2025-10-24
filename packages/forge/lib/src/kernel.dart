@@ -76,7 +76,7 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
       throw KernelException('Kernel is already booted');
     }
 
-    // Usar um Completer para garantir que o Future só complete quando tudo terminar
+    // Use a Completer to ensure the Future only completes when everything is finished
     final completer = Completer<void>();
 
     runZonedGuarded(

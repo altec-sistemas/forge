@@ -1,7 +1,7 @@
 import 'dart:async';
 import '../forge_core.dart';
 
-/// Interface base para todos os kernels (Application e Kernel)
+/// Base interface for all kernels (Application and Kernel).
 abstract class BaseKernel {
   /// The immutable dependency container.
   Injector get injector;
@@ -12,29 +12,29 @@ abstract class BaseKernel {
   /// Event bus for dispatching events
   EventBus get eventDispatcher;
 
-  /// Registra um bundle para ser construído e inicializado com o kernel.
+  /// Registers a bundle to be built and initialized with the kernel.
   void addBundle(Bundle bundle);
 
-  /// Verifica se o kernel já foi inicializado
+  /// Checks if the kernel has already been initialized.
   bool get isBooted;
 
-  /// Constrói o container de dependências
+  /// Builds the dependency container.
   Future<void> build();
 
-  /// Inicializa o kernel e todos os bundles
+  /// Initializes the kernel and all bundles.
   Future<void> boot();
 
-  /// Hook para subclasses registrarem serviços core
+  /// Hook for subclasses to register core services.
   void registerCoreServices(InjectorBuilder builder);
 
-  /// Hook para subclasses registrarem serviços adicionais
+  /// Hook for subclasses to register additional services.
   Future<void> registerServices(InjectorBuilder builder);
 
-  /// Hook chamado após o boot básico
+  /// Hook called after basic boot.
   Future<void> onBoot();
 }
 
-/// Mixin que implementa a lógica comum de BaseKernel
+/// Mixin that implements the common logic of BaseKernel.
 mixin BaseKernelMixin implements BaseKernel {
   final List<Bundle> _bundles = [];
   bool _booted = false;
@@ -63,15 +63,12 @@ mixin BaseKernelMixin implements BaseKernel {
   Future<void> build() async {
     final builder = InjectorBuilder();
 
-    // Registra instâncias básicas
     registerCoreServices(builder);
 
-    // Registra o EventDispatcher
     builder.registerFactory<EventBus>((c) => eventDispatcher);
     builder.registerFactory<Injector>((c) => _injector!);
     builder.registerInstance<String>(env, name: 'env');
 
-    // Permite que subclasses registrem serviços adicionais
     await registerServices(builder);
 
     final metaBuilder = MetadataRegistryBuilder();
@@ -99,7 +96,6 @@ mixin BaseKernelMixin implements BaseKernel {
 
     _booted = true;
 
-    // Registra event subscribers
     final eventSubscribers = injector.all<EventSubscriber>();
     for (final subscriber in eventSubscribers) {
       eventDispatcher.addSubscriber(subscriber);
@@ -107,7 +103,6 @@ mixin BaseKernelMixin implements BaseKernel {
 
     _registerEventListeners();
 
-    // Inicializa bundles
     for (final bundle in _bundles) {
       await bundle.boot(injector);
     }

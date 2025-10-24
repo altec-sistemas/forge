@@ -52,7 +52,7 @@ class ImportCollector {
       _elementLibraryToSourceImport[library] = importUri;
     }
 
-    // Map all exported libraries - usar firstFragment.libraryExports
+    // Map all exported libraries - use firstFragment.libraryExports
     final fragment = library.firstFragment;
     for (final export in fragment.libraryExports) {
       final exportedLibrary = export.exportedLibrary;
@@ -199,7 +199,7 @@ class ImportCollector {
 
   /// Gets a URI which would be appropriate for importing [library].
   Uri _getImportUri(LibraryElement library) {
-    // Usar firstFragment.source em vez de library.source
+    // Use firstFragment.source instead of library.source
     final fragment = library.firstFragment;
     final source = fragment.source;
     Uri uri = source.uri;

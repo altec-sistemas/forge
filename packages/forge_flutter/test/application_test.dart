@@ -357,7 +357,7 @@ void main() {
       await app.run((i) => const TestApp());
       await tester.pumpAndSettle();
 
-      // KernelErrorEvent não é disparado automaticamente, apenas em caso de erro
+      // KernelErrorEvent is not dispatched automatically, only in case of error
       expect(eventLog, isEmpty);
     });
   });

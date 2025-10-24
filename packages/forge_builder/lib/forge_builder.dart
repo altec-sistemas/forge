@@ -20,10 +20,10 @@ class ForgeBundleBuilder implements Builder {
       final library = await buildStep.inputLibrary;
       final resolver = buildStep.resolver;
 
-      // Usar TypeChecker.fromUrl em vez de fromRuntime
+      // Use TypeChecker.fromUrl instead of fromRuntime
       final autoBundleChecker = TypeChecker.typeNamed(AutoBundle);
 
-      // Usar getters específicos em vez de topLevelElements
+      // Use specific getters instead of topLevelElements
       for (final element in [
         ...library.classes,
         ...library.enums,

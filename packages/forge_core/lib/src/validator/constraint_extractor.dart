@@ -1,13 +1,14 @@
 import '../../forge_core.dart';
 
-/// Extrai constraints baseadas em metadados de classe
+/// Extracts constraints based on class metadata.
 class ConstraintExtractor {
   final MetadataRegistry _registry;
 
   ConstraintExtractor(this._registry);
 
-  /// Extrai constraint para validar um tipo [T]
-  /// Retorna null se o tipo não estiver mapeado no registry
+  /// Extracts a constraint to validate type [T].
+  ///
+  /// Returns `null` if the type is not mapped in the registry.
   Constraint? extractConstraint<T>() {
     if (!_registry.hasClassMetadata<T>()) {
       return null;
@@ -17,7 +18,7 @@ class ConstraintExtractor {
     return _buildConstraintFromClass(classMetadata);
   }
 
-  /// Extrai constraint para validar um tipo dinâmico
+  /// Extracts a constraint to validate a dynamic type.
   Constraint? extractConstraintForType(Type type) {
     if (!_registry.hasClassMetadata(type)) {
       return null;
@@ -27,7 +28,7 @@ class ConstraintExtractor {
     return _buildConstraintFromClass(classMetadata);
   }
 
-  /// Constrói uma Collection constraint baseada nos getters da classe
+  /// Builds a Collection constraint based on the class getters.
   Constraint _buildConstraintFromClass(ClassMetadata classMetadata) {
     if (!classMetadata.hasMappedGetters) {
       return Collection({});
@@ -49,31 +50,26 @@ class ConstraintExtractor {
     );
   }
 
-  /// Constrói constraint para um getter específico
+  /// Builds a constraint for a specific getter.
   Constraint? _buildConstraintForGetter(GetterMetadata getter) {
     final constraints = <Constraint>[];
 
-    // 1. Adiciona constraint de tipo primitivo
     final typeConstraint = _getPrimitiveTypeConstraint(getter.typeMetadata);
     if (typeConstraint != null) {
       constraints.add(typeConstraint);
     }
 
-    // 2. Adiciona constraints das annotations
     final annotationConstraints = _extractConstraintsFromAnnotations(getter);
     constraints.addAll(annotationConstraints);
 
-    // Se não tem constraints, retorna null
     if (constraints.isEmpty) {
       return null;
     }
 
-    // 3. Combina múltiplas constraints com All
     final combinedConstraint = constraints.length == 1
         ? constraints.first
         : All(constraints);
 
-    // 4. Envolve em Optional se for nullable
     if (_isNullableGetter(getter)) {
       return Optional(combinedConstraint);
     }
@@ -81,33 +77,30 @@ class ConstraintExtractor {
     return combinedConstraint;
   }
 
-  /// Retorna constraint de validação para tipos primitivos
+  /// Returns a validation constraint for primitive types.
   Constraint? _getPrimitiveTypeConstraint(TypeMetadata typeMetadata) {
     final type = typeMetadata.type;
 
-    // Tipos primitivos
     if (type == String) return const IsString();
     if (type == int) return const IsInt();
     if (type == double) return const IsDouble();
     if (type == num) return const IsNum();
     if (type == bool) return const IsBool();
 
-    // Lista
     if (type == List || _isListType(type)) {
       return const IsList();
     }
 
-    // Tipo não primitivo - não adiciona constraint de tipo
     return null;
   }
 
-  /// Verifica se é um tipo [List<T>]
+  /// Checks if the type is a [List<T>].
   bool _isListType(Type type) {
     final typeString = type.toString();
     return typeString.startsWith('List<') || typeString == 'List';
   }
 
-  /// Extrai todas as Constraint annotations de um getter
+  /// Extracts all Constraint annotations from a getter.
   List<Constraint> _extractConstraintsFromAnnotations(GetterMetadata getter) {
     final constraints = <Constraint>[];
 
