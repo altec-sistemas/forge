@@ -1,0 +1,19 @@
+name: forge_framework
+description: A starting point for Dart libraries or applications.
+publish_to: none
+
+environment:
+  sdk: ^3.9.2
+
+dev_dependencies:
+  lints: ^6.0.0
+
+dependency_overrides:
+  test_api: ^0.7.7
+
+workspace:
+  - packages/forge
+  - packages/forge_builder
+  - packages/forge_flutter
+  - packages/forge_flutter/example
+  - packages/forge_core
