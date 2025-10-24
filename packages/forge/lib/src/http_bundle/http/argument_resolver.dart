@@ -97,9 +97,7 @@ class _ArgumentResolverImpl implements ArgumentResolver {
     final namedArgs = <Symbol, dynamic>{};
 
     if (!handler.hasMappedParameters) {
-      throw Exception(
-        'No argument mapping found for handler',
-      );
+      return ArgumentsResult.empty();
     }
 
     for (final meta in handler.parameters!) {

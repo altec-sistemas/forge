@@ -10,7 +10,6 @@ export 'annotation.dart';
 export 'config/http_config.dart';
 export 'events.dart';
 export 'exception/http_exception.dart';
-export 'http/abstract_controller.dart';
 export 'http/request_context.dart';
 export 'http/response.dart';
 export 'http/argument_resolver.dart';

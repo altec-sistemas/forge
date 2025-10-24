@@ -71,10 +71,10 @@ class BundleGenerator {
 
   /// Scan files matching the given patterns
   Future<ScannedData> _scanFiles(
-    List<String> paths,
-    List<String> excludePaths,
-    ImportCollector importCollector,
-  ) async {
+      List<String> paths,
+      List<String> excludePaths,
+      ImportCollector importCollector,
+      ) async {
     final scannedData = ScannedData();
     final processedFiles = <String>{};
 
@@ -169,6 +169,8 @@ class ClassData {
   final List<GetterData>? getters;
   final List<SetterData>? setters;
   final bool hasMetadata;
+  final List<RequiredMethodData>? requiredMethods;
+  final List<RequiredSetterData>? requiredSetters;
 
   ClassData({
     required this.element,
@@ -177,6 +179,8 @@ class ClassData {
     this.getters,
     this.setters,
     this.hasMetadata = false,
+    this.requiredMethods,
+    this.requiredSetters,
   });
 }
 
@@ -298,12 +302,16 @@ class ServiceData {
   final bool isSingleton;
   final DartObject annotation;
   final List<InjectInfo> constructorInjects;
+  final List<RequiredMethodData> requiredMethods;
+  final List<RequiredSetterData> requiredSetters;
 
   ServiceData({
     required this.element,
     required this.annotation,
     required this.isSingleton,
     required this.constructorInjects,
+    this.requiredMethods = const [],
+    this.requiredSetters = const [],
   });
 }
 
@@ -326,5 +334,27 @@ class EnumValueData {
 
   EnumValueData({
     required this.element,
+  });
+}
+
+/// Data about a method marked with @Required
+class RequiredMethodData {
+  final MethodElement element;
+  final List<InjectInfo> parameterInjects;
+
+  RequiredMethodData({
+    required this.element,
+    required this.parameterInjects,
+  });
+}
+
+/// Data about a setter marked with @Required
+class RequiredSetterData {
+  final SetterElement element;
+  final InjectInfo? parameterInject;
+
+  RequiredSetterData({
+    required this.element,
+    this.parameterInject,
   });
 }

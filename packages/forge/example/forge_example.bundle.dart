@@ -12,8 +12,18 @@ abstract class AbstractExampleBundle implements Bundle {
   @override
   Future<void> build(InjectorBuilder builder, String env) async {
     // Register services
-    builder.registerSingleton<prefix1.HomeController>((i) => prefix1.HomeController());
-    builder.registerFactory<prefix1.SomeList>((i) => prefix1.SomeList());
+    builder.registerSingleton<prefix1.HomeController>(
+      (i) => prefix1.HomeController(i<prefix0.Serializer>()),
+      onCreate: (instance, i) {
+        instance.setValidador(i<prefix0.Validator>());
+      },
+    );
+    builder.registerFactory<prefix1.SomeListener>((i) => prefix1.SomeListener());
+    builder.registerFactory<prefix1.SomeNamedService>((i) => prefix1.SomeNamedService());
+    builder.registerFactory<prefix1.OtherService>((i) => prefix1.OtherService(i<prefix1.SomeNamedService>()));
+    builder.registerFactory<prefix1.CreditCardPayment>((i) => prefix1.CreditCardPayment());
+    builder.registerFactory<prefix1.PaypalPayment>((i) => prefix1.PaypalPayment());
+    builder.registerFactory<prefix1.PaymentService>((i) => prefix1.PaymentService(i<dynamic>('paypal')));
     // Register modules
     builder.registerSingleton<prefix1.ValidationModule>((i) => prefix1.ValidationModule());
     builder.registerSingleton<prefix0.ValidationMessageProvider>((i) => i<prefix1.ValidationModule>().messageProvider);
@@ -25,8 +35,11 @@ abstract class AbstractExampleBundle implements Bundle {
       meta.clazz(
         meta.type<prefix1.HomeController>(),
         const <Object>[prefix0.Controller()],
-        [meta.constructor(() => prefix1.HomeController.new, [], 'new', const [])],
         [
+          meta.constructor(() => prefix1.HomeController.new, [meta.parameter(meta.type<prefix0.Serializer>(), '_serializer', 0, false, false, null, const [])], 'new', const []),
+        ],
+        [
+          meta.method(meta.type<void>(), 'setValidador', (instance) => instance.setValidador, [meta.parameter(meta.type<prefix0.Validator>(), 'validator', 0, false, false, null, const [])], const <Object>[prefix0.Required()]),
           meta.method(
             meta.type<prefix2.Future<List<prefix1.User>>>([
               meta.type<List<prefix1.User>>([meta.type<prefix1.User>()]),
@@ -45,11 +58,30 @@ abstract class AbstractExampleBundle implements Bundle {
             ],
             const <Object>[prefix0.Route.get('/users/create')],
           ),
+          meta.method(
+            meta.type<prefix0.Response>(),
+            'index',
+            (instance) => instance.index,
+            [
+              meta.parameter(meta.type<prefix0.Request>(), 'request', 0, false, false, null, const []),
+              meta.parameter(meta.type<String>(), 'name', 1, true, false, 'Bob', const <Object>[prefix0.QueryParam()]),
+            ],
+            const <Object>[prefix0.Route.get('/hello')],
+          ),
+          meta.method(
+            meta.type<prefix0.JsonResponse>(),
+            'preSerialize',
+            (instance) => instance.preSerialize,
+            null, // parameters
+            const <Object>[prefix0.Route.get('/pre-serialize')],
+          ),
         ],
         [
           meta.getter(meta.type<List<prefix1.User>>([meta.type<prefix1.User>()]), '_users', (instance) => instance._users, const []),
+          meta.getter(meta.type<prefix0.Serializer>(), '_serializer', (instance) => instance._serializer, const []),
+          meta.getter(meta.type<prefix0.Validator>(), '_validator', (instance) => instance._validator, const []),
         ],
-        null, // setters
+        [meta.setter(meta.type<prefix0.Validator>(), '_validator', (instance, value) => instance._validator = value, const [])],
       ),
     );
 
@@ -87,13 +119,15 @@ abstract class AbstractExampleBundle implements Bundle {
       ),
     );
 
-    metaBuilder.registerClass<prefix1.SomeList>(
+    metaBuilder.registerClass<prefix1.SomeListener>(
       meta.clazz(
-        meta.type<prefix1.SomeList>(),
+        meta.type<prefix1.SomeListener>(),
         const <Object>[prefix0.Service()],
         null, // constructors
         [
           meta.method(meta.type<void>(), 'onRequest', (instance) => instance.onRequest, [meta.parameter(meta.type<prefix0.HttpKernelRequestEvent>(), 'event', 0, false, false, null, const [])], const <Object>[prefix0.AsEventListener()]),
+          meta.method(meta.type<void>(), 'onHttpKernelException', (instance) => instance.onHttpKernelException, [meta.parameter(meta.type<prefix0.HttpKernelExceptionEvent>(), 'event', 0, false, false, null, const [])], const <Object>[prefix0.AsEventListener()]),
+          meta.method(meta.type<void>(), 'onHttpServerStarted', (instance) => instance.onHttpServerStarted, [meta.parameter(meta.type<prefix0.HttpRunnerStarted>(), 'event', 0, false, false, null, const [])], const <Object>[prefix0.AsEventListener()]),
         ],
         null, // getters
         null, // setters

@@ -3,3 +3,7 @@ mixin GenericCaller<T> {
     return fn<T>();
   }
 }
+
+bool isSameType<C, T>() {
+    return <C>[] is List<T>;
+  }
