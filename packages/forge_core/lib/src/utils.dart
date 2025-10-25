@@ -7,3 +7,7 @@ mixin GenericCaller<T> {
 bool isSameType<C, T>() {
   return <C>[] is List<T>;
 }
+
+bool isValueSubtypeOf<C, T>(C value) {
+  return <C>[] is List<T>;
+}

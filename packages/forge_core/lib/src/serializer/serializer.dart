@@ -2,7 +2,6 @@ import 'dart:collection';
 import 'dart:convert' as c;
 
 import '../../forge_core.dart';
-import '../exception/serializer_exception.dart';
 
 export 'transformer/metadata_transformer.dart';
 
@@ -234,7 +233,7 @@ class _SerializerImpl implements Serializer {
     }
 
     throw SerializerException(
-      'No transformer found for denormalizing data to type: $T',
+      'No transformer found for denormalizing data to type: $T ${data}',
     );
   }
 
@@ -303,7 +302,8 @@ class PrimitiveTransformer implements Transformer {
 
   @override
   bool supportsDenormalization<T>(dynamic data, SerializerContext context) {
-    return _primitiveTypes.contains(T);
+    return _primitiveTypes.contains(T) ||
+        _primitiveTypes.contains(data.runtimeType);
   }
 
   @override
@@ -410,7 +410,7 @@ class MapTransformer implements Transformer, SerializerAware {
 
   @override
   bool supportsDenormalization<T>(dynamic data, SerializerContext context) {
-    return false;
+    return isSameType<T, Map>() || isSameType<T, Map?>() || data is Map;
   }
 
   @override
@@ -446,8 +446,26 @@ class MapTransformer implements Transformer, SerializerAware {
 
   @override
   T denormalize<T>(dynamic data, SerializerContext context) {
-    throw SerializerException(
-      'MapTransformer does not support denormalization. Use ObjectTransformer instead.',
-    );
+    if (data is! Map) {
+      throw SerializerException(
+        'MapTransformer can only denormalize Map data, got ${data.runtimeType}',
+      );
+    }
+
+    if (data.isEmpty) {
+      return <Object, Object>{} as T;
+    }
+
+    final result = <Object?, Object?>{};
+
+    for (final entry in data.entries) {
+      final key = entry.key;
+      final value = entry.value;
+
+      result[_serializer.denormalize<Object>(key, context)] = _serializer
+          .denormalize<Object>(value, context);
+    }
+
+    return result as T;
   }
 }

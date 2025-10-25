@@ -1,6 +1,6 @@
-import 'package:cpf_cnpj_validator/cnpj_validator.dart';
-import 'package:cpf_cnpj_validator/cpf_validator.dart';
 import 'package:forge_core/forge_core.dart';
+import 'package:forge_core/src/validator/brazilian_document/cnpj_validator.dart';
+import 'package:forge_core/src/validator/brazilian_document/cpf_validator.dart';
 import 'package:test/test.dart';
 
 void main() {

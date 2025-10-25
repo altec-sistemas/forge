@@ -7,7 +7,6 @@ import 'package:forge_core/metadata_compact_api.dart' as meta;
 import 'controller/home_controller.dart' as prefix1;
 import 'dart:async' as prefix2;
 import 'package:forge_framework/forge_framework.dart' as prefix0;
-import 'package:forge_core/forge_core.dart' as prefix0;
 
 abstract class AbstractExampleBundle implements Bundle {
   @override

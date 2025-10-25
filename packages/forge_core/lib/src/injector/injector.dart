@@ -295,11 +295,7 @@ class _InjectorImpl implements Injector {
     final contextInjector = _ResolutionContextInjector(this, newStack);
 
     try {
-      return registration.resolve(
-            contextInjector,
-            key,
-            _singletonInstances,
-          )
+      return registration.resolve(contextInjector, key, _singletonInstances)
           as T;
     } on ServiceNotFoundException catch (e) {
       // If exception already has detailed resolution info, preserve it

@@ -1,5 +1,5 @@
-import 'package:cpf_cnpj_validator/cnpj_validator.dart';
-import 'package:cpf_cnpj_validator/cpf_validator.dart';
+import 'brazilian_document/cnpj_validator.dart';
+import 'brazilian_document/cpf_validator.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 import 'package:meta/meta_meta.dart';
 import 'validator.dart';
