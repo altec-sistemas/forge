@@ -396,15 +396,6 @@ class ListTransformer implements Transformer, SerializerAware {
     return false;
   }
 
-  Type? _getListItemType<T>() {
-    for (final primitiveType in _primitiveTypes) {
-      if (_checkListType<T>(primitiveType)) {
-        return primitiveType;
-      }
-    }
-    return null;
-  }
-
   @override
   dynamic normalize<T>(T object, SerializerContext context) {
     if (object is! List) {
