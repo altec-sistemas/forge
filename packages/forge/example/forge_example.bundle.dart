@@ -7,6 +7,7 @@ import 'package:forge_core/metadata_compact_api.dart' as meta;
 import 'controller/home_controller.dart' as prefix1;
 import 'dart:async' as prefix2;
 import 'package:forge/forge.dart' as prefix0;
+import 'package:forge_core/forge_core.dart' as prefix0;
 
 abstract class AbstractExampleBundle implements Bundle {
   @override
@@ -23,7 +24,7 @@ abstract class AbstractExampleBundle implements Bundle {
     builder.registerFactory<prefix1.OtherService>((i) => prefix1.OtherService(i<prefix1.SomeNamedService>()));
     builder.registerFactory<prefix1.CreditCardPayment>((i) => prefix1.CreditCardPayment());
     builder.registerFactory<prefix1.PaypalPayment>((i) => prefix1.PaypalPayment());
-    builder.registerFactory<prefix1.PaymentService>((i) => prefix1.PaymentService(i<dynamic>('paypal')));
+    builder.registerFactory<prefix1.PaymentService>((i) => prefix1.PaymentService(i('paypal')));
     // Register modules
     builder.registerSingleton<prefix1.ValidationModule>((i) => prefix1.ValidationModule());
     builder.registerSingleton<prefix0.ValidationMessageProvider>((i) => i<prefix1.ValidationModule>().messageProvider);

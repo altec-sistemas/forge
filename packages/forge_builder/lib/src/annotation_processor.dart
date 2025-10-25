@@ -1,5 +1,5 @@
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:forge_core/forge_core.dart';
@@ -11,7 +11,7 @@ import 'import_collector.dart';
 /// Processes annotations and identifies capabilities
 class AnnotationProcessor {
   final Resolver resolver;
-  final LibraryElement library;
+  final LibraryElement2 library;
   final ScannedData data = ScannedData();
   final ImportCollector? importCollector;
 
@@ -60,8 +60,8 @@ class AnnotationProcessor {
 
     final fragment = library.firstFragment;
 
-    for (final import in fragment.libraryImports) {
-      final importedLibrary = import.importedLibrary;
+    for (final import in fragment.libraryImports2) {
+      final importedLibrary = import.importedLibrary2;
       if (importedLibrary == null) continue;
 
       final importUri = import.uri;
@@ -84,7 +84,7 @@ class AnnotationProcessor {
   }
 
   /// Process a class element
-  Future<void> _processClass(ClassElement element) async {
+  Future<void> _processClass(ClassElement2 element) async {
     // Check if it's a Module
     if (_hasAnnotation(element, _moduleChecker)) {
       await _processModule(element);
@@ -100,7 +100,7 @@ class AnnotationProcessor {
       if (injectableAnnotation != null) {
         // Get constructor and extract InjectInfo
         final constructor =
-            element.unnamedConstructor ?? element.constructors.firstOrNull;
+            element.unnamedConstructor2 ?? element.constructors2.firstOrNull;
         final constructorInjects = constructor != null
             ? _extractInjectInfo(constructor.formalParameters)
             : <InjectInfo>[];
@@ -222,7 +222,7 @@ class AnnotationProcessor {
   }
 
   /// Collect capabilities from all members (for cascading)
-  Capabilities _collectMemberCapabilities(ClassElement element) {
+  Capabilities _collectMemberCapabilities(ClassElement2 element) {
     bool hasMethodsCapability = false;
     bool hasConstructorsCapability = false;
     bool hasGettersCapability = false;
@@ -230,7 +230,7 @@ class AnnotationProcessor {
     bool hasParametersCapability = false;
 
     // Check constructors
-    for (final constructor in element.constructors) {
+    for (final constructor in element.constructors2) {
       final annotations = _getAnnotations(constructor);
       for (final annotation in annotations) {
         if (_implementsCapability(annotation.type, 'ConstructorsCapability')) {
@@ -255,7 +255,7 @@ class AnnotationProcessor {
     }
 
     // Check methods
-    for (final method in element.methods) {
+    for (final method in element.methods2) {
       final annotations = _getAnnotations(method);
       for (final annotation in annotations) {
         if (_implementsCapability(annotation.type, 'MethodsCapability')) {
@@ -280,10 +280,10 @@ class AnnotationProcessor {
     }
 
     // Check getters
-    for (final getter in element.getters) {
+    for (final getter in element.getters2) {
       final annotations = [
         ..._getAnnotations(getter),
-        ..._getAnnotations(getter.variable),
+        if (getter.variable3 != null) ..._getAnnotations(getter.variable3!)
       ];
       for (final annotation in annotations) {
         if (_implementsCapability(annotation.type, 'GettersCapability')) {
@@ -293,7 +293,7 @@ class AnnotationProcessor {
     }
 
     // Check setters
-    for (final setter in element.setters) {
+    for (final setter in element.setters2) {
       final annotations = _getAnnotations(setter);
       for (final annotation in annotations) {
         if (_implementsCapability(annotation.type, 'SettersCapability')) {
@@ -357,12 +357,12 @@ class AnnotationProcessor {
   }
 
   /// Process module
-  Future<void> _processModule(ClassElement element) async {
+  Future<void> _processModule(ClassElement2 element) async {
     final providers = <ProviderData>[];
     final bootMethods = <BootMethodData>[];
 
     // Process methods
-    for (final method in element.methods) {
+    for (final method in element.methods2) {
       final provideAnnotation = _provideChecker.firstAnnotationOf(method);
       final provideSingletonAnnotation = _provideSingletonChecker
           .firstAnnotationOf(method);
@@ -413,7 +413,7 @@ class AnnotationProcessor {
     }
 
     // Process getters (they can also be providers)
-    for (final getter in element.getters) {
+    for (final getter in element.getters2) {
       final provideAnnotation = _provideChecker.firstAnnotationOf(getter);
       final provideSingletonAnnotation = _provideSingletonChecker
           .firstAnnotationOf(getter);
@@ -459,7 +459,7 @@ class AnnotationProcessor {
   }
 
   /// Process enum
-  Future<void> _processEnum(EnumElement element) async {
+  Future<void> _processEnum(EnumElement2 element) async {
     // Check if enum has any capabilities
     final annotations = _getAnnotations(element);
     if (!_hasAnyCapability(annotations)) {
@@ -467,7 +467,7 @@ class AnnotationProcessor {
     }
 
     final values = <EnumValueData>[];
-    for (final field in element.fields) {
+    for (final field in element.constants2) {
       if (field.isEnumConstant) {
         values.add(EnumValueData(element: field));
       }
@@ -491,12 +491,12 @@ class AnnotationProcessor {
 
   /// Process constructors based on capabilities
   List<ConstructorData> _processConstructors(
-      InterfaceElement element,
+      InterfaceElement2 element,
       Capabilities capabilities,
       ) {
     final constructors = <ConstructorData>[];
 
-    for (final constructor in element.constructors) {
+    for (final constructor in element.constructors2) {
       final annotations = _getAnnotations(constructor);
 
       // Class-level capability: include ALL constructors
@@ -525,12 +525,12 @@ class AnnotationProcessor {
 
   /// Process methods based on capabilities
   List<MethodData> _processMethods(
-      InterfaceElement element,
+      InterfaceElement2 element,
       Capabilities capabilities,
       ) {
     final methods = <MethodData>[];
 
-    for (final method in element.methods) {
+    for (final method in element.methods2) {
       final annotations = _getAnnotations(method);
 
       // Class-level capability: include ALL methods
@@ -557,15 +557,16 @@ class AnnotationProcessor {
 
   /// Process getters based on capabilities
   List<GetterData> _processGetters(
-      InterfaceElement element,
+      InstanceElement2 element,
       Capabilities capabilities,
       ) {
     final getters = <GetterData>[];
 
-    for (final getter in element.getters) {
+    for (final getter in element.getters2) {
+
       final annotations = [
         ..._getAnnotations(getter),
-        ..._getAnnotations(getter.variable),
+        if (getter.variable3 != null) ..._getAnnotations(getter.variable3!)
       ];
 
       // Class-level capability: include ALL getters
@@ -588,12 +589,12 @@ class AnnotationProcessor {
 
   /// Process setters based on capabilities
   List<SetterData> _processSetters(
-      InterfaceElement element,
+      InterfaceElement2 element,
       Capabilities capabilities,
       ) {
     final setters = <SetterData>[];
 
-    for (final setter in element.setters) {
+    for (final setter in element.setters2) {
       final annotations = _getAnnotations(setter);
 
       // Class-level capability: include ALL setters
@@ -615,15 +616,15 @@ class AnnotationProcessor {
   }
 
   /// Get all annotations for an element
-  List<DartObject> _getAnnotations(Element element) {
-    return element.metadata.annotations
+  List<DartObject> _getAnnotations(Annotatable element) {
+    return element.metadata2.annotations
         .map((m) => m.computeConstantValue())
         .whereType<DartObject>()
         .toList();
   }
 
   /// Check if element has a specific annotation
-  bool _hasAnnotation(Element element, TypeChecker checker) {
+  bool _hasAnnotation(Element2 element, TypeChecker checker) {
     try {
       return checker.hasAnnotationOf(element);
     } catch (e) {
@@ -655,8 +656,8 @@ class AnnotationProcessor {
   bool _implementsAnyCapability(DartType? type) {
     if (type == null || type is! InterfaceType) return false;
 
-    final element = type.element;
-    if (element is! ClassElement) return false;
+    final element = type.element3;
+    if (element is! ClassElement2) return false;
 
     final allInterfaces = [
       element.thisType,
@@ -664,7 +665,7 @@ class AnnotationProcessor {
     ];
 
     for (final interface in allInterfaces) {
-      final name = interface.element.name;
+      final name = interface.element3.name3;
       if (name == 'ClassCapability' ||
           name == 'MethodsCapability' ||
           name == 'ConstructorsCapability' ||
@@ -683,8 +684,8 @@ class AnnotationProcessor {
   bool _implementsCapability(DartType? type, String capabilityName) {
     if (type == null || type is! InterfaceType) return false;
 
-    final element = type.element;
-    if (element is! ClassElement) return false;
+    final element = type.element3;
+    if (element is! ClassElement2) return false;
 
     final allInterfaces = [
       element.thisType,
@@ -692,7 +693,7 @@ class AnnotationProcessor {
     ];
 
     for (final interface in allInterfaces) {
-      if (interface.element.name == capabilityName) {
+      if (interface.element3.name3 == capabilityName) {
         return true;
       }
     }
@@ -739,10 +740,10 @@ class AnnotationProcessor {
   }
 
   /// Process methods marked with @Required annotation
-  List<RequiredMethodData> _processRequiredMethods(ClassElement element) {
+  List<RequiredMethodData> _processRequiredMethods(ClassElement2 element) {
     final requiredMethods = <RequiredMethodData>[];
 
-    for (final method in element.methods) {
+    for (final method in element.methods2) {
       if (_hasAnnotation(method, _requiredChecker)) {
         final parameterInjects = _extractInjectInfo(method.formalParameters);
         requiredMethods.add(
@@ -758,10 +759,10 @@ class AnnotationProcessor {
   }
 
   /// Process setters marked with @Required annotation
-  List<RequiredSetterData> _processRequiredSetters(ClassElement element) {
+  List<RequiredSetterData> _processRequiredSetters(ClassElement2 element) {
     final requiredSetters = <RequiredSetterData>[];
 
-    for (final setter in element.setters) {
+    for (final setter in element.setters2) {
       if (_hasAnnotation(setter, _requiredChecker)) {
         // Setters have exactly one parameter
         final param = setter.formalParameters.firstOrNull;

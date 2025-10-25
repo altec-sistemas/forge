@@ -1,16 +1,16 @@
-import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:build/build.dart';
 import 'package:path/path.dart' as path;
 
 /// Collects and manages imports required for generated code.
 class ImportCollector {
-  final Map<LibraryElement, String> _libraryToPrefix = {};
-  final Map<LibraryElement, String> _libraryToOriginalImport = {};
-  final Map<String, LibraryElement> _importUriToLibrary = {};
+  final Map<LibraryElement2, String> _libraryToPrefix = {};
+  final Map<LibraryElement2, String> _libraryToOriginalImport = {};
+  final Map<String, LibraryElement2> _importUriToLibrary = {};
   final Set<String> _usedPrefixes = {};
 
   // Maps element libraries to the import that was actually used in source
-  final Map<LibraryElement, String> _elementLibraryToSourceImport = {};
+  final Map<LibraryElement2, String> _elementLibraryToSourceImport = {};
 
   int _nextPrefixIndex = 0;
 
@@ -20,7 +20,7 @@ class ImportCollector {
   ImportCollector(this.from, this.resolver);
 
   /// Registers a library and its original import URI from the source file
-  void registerLibraryWithImport(LibraryElement library, String importUri) {
+  void registerLibraryWithImport(LibraryElement2 library, String importUri) {
     if (library.isDartCore) return;
 
     // Skip the bundle file itself
@@ -46,7 +46,7 @@ class ImportCollector {
   }
 
   /// Maps all libraries exported by an import to use that import URI
-  void _mapExportedLibraries(LibraryElement library, String importUri) {
+  void _mapExportedLibraries(LibraryElement2 library, String importUri) {
     // Map the library itself
     if (!_elementLibraryToSourceImport.containsKey(library)) {
       _elementLibraryToSourceImport[library] = importUri;
@@ -54,8 +54,8 @@ class ImportCollector {
 
     // Map all exported libraries - use firstFragment.libraryExports
     final fragment = library.firstFragment;
-    for (final export in fragment.libraryExports) {
-      final exportedLibrary = export.exportedLibrary;
+    for (final export in fragment.libraryExports2) {
+      final exportedLibrary = export.exportedLibrary2;
       if (exportedLibrary != null) {
         // Only map if not already mapped (first import wins)
         if (!_elementLibraryToSourceImport.containsKey(exportedLibrary)) {
@@ -121,7 +121,7 @@ class ImportCollector {
   }
 
   /// Gets the prefix for a library (with trailing dot).
-  String getPrefix(LibraryElement library) {
+  String getPrefix(LibraryElement2 library) {
     if (library.isDartCore) return '';
 
     // First, check if we have a mapped source import for this library
@@ -150,7 +150,7 @@ class ImportCollector {
   }
 
   /// Returns all libraries that need to be imported.
-  Iterable<LibraryElement> get libraries => _libraryToPrefix.keys;
+  Iterable<LibraryElement2> get libraries => _libraryToPrefix.keys;
 
   /// Returns all collected import statements (sorted deterministically).
   /// Only includes imports that are actually used in the generated code.
@@ -198,7 +198,7 @@ class ImportCollector {
   }
 
   /// Gets a URI which would be appropriate for importing [library].
-  Uri _getImportUri(LibraryElement library) {
+  Uri _getImportUri(LibraryElement2 library) {
     // Use firstFragment.source instead of library.source
     final fragment = library.firstFragment;
     final source = fragment.source;
@@ -248,7 +248,7 @@ class ImportCollector {
   }
 
   /// Try to get AssetId from library
-  AssetId? _tryGetAssetId(LibraryElement library) {
+  AssetId? _tryGetAssetId(LibraryElement2 library) {
     try {
       final fragment = library.firstFragment;
       final source = fragment.source;

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:build/build.dart';
 import 'package:forge_core/forge_core.dart';
 import 'package:source_gen/source_gen.dart';
@@ -29,7 +29,7 @@ class ForgeBundleBuilder implements Builder {
         ...library.enums,
         ...library.extensions,
       ]) {
-        if (element is ClassElement) {
+        if (element is ClassElement2) {
           final annotation = autoBundleChecker.firstAnnotationOf(element);
           if (annotation != null) {
             // Generate bundle implementation

@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
@@ -168,17 +169,17 @@ class CodeEmitter {
       )}<$typeStr>(',
     );
 
-    _buffer.write('(i) => i<$moduleType>().${method.name}');
+    _buffer.write('(i) => i<$moduleType>().${method.name3}');
 
     // Add parameters
-    if (method is MethodElement) {
+    if (method is MethodElement2) {
       _buffer.write('(');
       final params = method.formalParameters;
       for (var i = 0; i < params.length; i++) {
         if (i > 0) _buffer.write(', ');
         final param = params[i];
         if (param.isNamed) {
-          _buffer.write('${param.name}: ');
+          _buffer.write('${param.name3}: ');
         }
 
         // Use InjectInfo if available
@@ -252,7 +253,7 @@ class CodeEmitter {
         if (isAsync) {
           _buffer.write('await ');
         }
-        _buffer.write('i<$moduleType>().${method.name}');
+        _buffer.write('i<$moduleType>().${method.name3}');
 
         if (method is MethodElement) {
           _buffer.write('(');
@@ -261,7 +262,7 @@ class CodeEmitter {
             if (i > 0) _buffer.write(', ');
             final param = params[i];
             if (param.isNamed) {
-              _buffer.write('${param.name}: ');
+              _buffer.write('${param.name3}: ');
             }
 
             // Use InjectInfo if available
@@ -287,8 +288,8 @@ class CodeEmitter {
 
       // Find constructor (use default or first available)
       final constructor =
-          service.element.unnamedConstructor ??
-              service.element.constructors.firstOrNull;
+          service.element.unnamedConstructor2 ??
+              service.element.constructors2.firstOrNull;
 
       if (constructor == null) continue;
 
@@ -311,7 +312,7 @@ class CodeEmitter {
 
       _buffer.write('      (i) => $serviceType');
 
-      final constructorName = constructor.name!;
+      final constructorName = constructor.name3!;
       if (constructorName.isNotEmpty && constructorName != 'new') {
         _buffer.write('.$constructorName');
       }
@@ -324,7 +325,7 @@ class CodeEmitter {
         if (i > 0) _buffer.write(', ');
         final param = params[i];
         if (param.isNamed) {
-          _buffer.write('${param.name}: ');
+          _buffer.write('${param.name3}: ');
         }
 
         // Use InjectInfo if available
@@ -347,7 +348,7 @@ class CodeEmitter {
 
         // Generate calls to @Required setters
         for (final setter in service.requiredSetters) {
-          final setterName = setter.element.name;
+          final setterName = setter.element.name3;
           final param = setter.element.formalParameters.firstOrNull;
 
           if (param != null) {
@@ -359,7 +360,7 @@ class CodeEmitter {
 
         // Generate calls to @Required methods
         for (final method in service.requiredMethods) {
-          final methodName = method.element.name;
+          final methodName = method.element.name3;
           final returnType = method.element.returnType;
           final isAsync = returnType.isDartAsyncFuture ||
               returnType.isDartAsyncFutureOr;
@@ -375,7 +376,7 @@ class CodeEmitter {
             if (i > 0) _buffer.write(', ');
             final param = methodParams[i];
             if (param.isNamed) {
-              _buffer.write('${param.name}: ');
+              _buffer.write('${param.name3}: ');
             }
 
             final injectInfo = i < method.parameterInjects.length
@@ -460,7 +461,7 @@ class CodeEmitter {
   }
 
   Future<void> _generateConstructorMetadata(
-      ClassElement classElement,
+      ClassElement2 classElement,
       ConstructorData constructor,
       ) async {
     final element = constructor.element;
@@ -469,7 +470,7 @@ class CodeEmitter {
     _buffer.writeln('          meta.constructor(');
     _buffer.write('            () => $className');
 
-    final constructorName = element.name!;
+    final constructorName = element.name3!;
     if (constructorName.isNotEmpty) {
       _buffer.write('.$constructorName');
     } else {
@@ -507,7 +508,7 @@ class CodeEmitter {
 
     _buffer.write('              meta.parameter(');
     _buffer.write('${_generateMetaType(param.type)}, ');
-    _buffer.write("'${param.name}', ");
+    _buffer.write("'${param.name3}', ");
     _buffer.write('$index, ');
     _buffer.write('$isOptional, ');
     _buffer.write('$isNamed');
@@ -526,8 +527,8 @@ class CodeEmitter {
     _buffer.writeln('          meta.method(');
     _buffer.write('            ${_generateMetaType(element.returnType)}');
     _buffer.writeln(',');
-    _buffer.writeln("            '${element.name}',");
-    _buffer.writeln('            (instance) => instance.${element.name},');
+    _buffer.writeln("            '${element.name3}',");
+    _buffer.writeln('            (instance) => instance.${element.name3},');
 
     // Parameters
     final params = element.formalParameters;
@@ -556,13 +557,15 @@ class CodeEmitter {
     _buffer.writeln('          meta.getter(');
     _buffer.write('            ${_generateMetaType(element.returnType)}');
     _buffer.writeln(',');
-    _buffer.writeln("            '${element.name}',");
-    _buffer.writeln('            (instance) => instance.${element.name},');
+    _buffer.writeln("            '${element.name3}',");
+    _buffer.writeln('            (instance) => instance.${element.name3},');
 
     // Annotations - use the element
     _buffer.write('            ');
-    await _generateAnnotationsFromElement(element.variable);
-    _buffer.writeln(',');
+    if (element.variable3 != null ) {
+      await _generateAnnotationsFromElement(element.variable3!);
+      _buffer.writeln(',');
+    }
 
     _buffer.writeln('          ),');
   }
@@ -577,15 +580,17 @@ class CodeEmitter {
     _buffer.writeln('          meta.setter(');
     _buffer.write('            ${_generateMetaType(param.type)}');
     _buffer.writeln(',');
-    _buffer.writeln("            '${element.name}',");
+    _buffer.writeln("            '${element.name3}',");
     _buffer.writeln(
-      '            (instance, value) => instance.${element.name} = value,',
+      '            (instance, value) => instance.${element.name3} = value,',
     );
 
     // Annotations - use the element
     _buffer.write('            ');
-    await _generateAnnotationsFromElement(element.variable);
-    _buffer.writeln(',');
+    if (element.variable3 != null ) {
+      await _generateAnnotationsFromElement(element.variable3!);
+      _buffer.writeln(',');
+    }
 
     _buffer.writeln('          ),');
   }
@@ -634,7 +639,7 @@ class CodeEmitter {
       String enumType,
       ) async {
     final element = value.element;
-    final elementName = element.name;
+    final elementName = element.name3;
 
     _buffer.writeln('          meta.enumValue(');
     _buffer.writeln("            '$elementName',");
@@ -650,7 +655,7 @@ class CodeEmitter {
   }
 
   /// Generate annotations using the AnnotationCodeGenerator
-  Future<void> _generateAnnotationsFromElement(Element element) async {
+  Future<void> _generateAnnotationsFromElement(Element2 element) async {
     final code = await annotationGenerator.extractMetadataCode(
       element,
       inputId,
@@ -659,30 +664,30 @@ class CodeEmitter {
   }
 
   /// Generate type name with proper prefix handling
-  String _getTypeName(DartType type, {bool nullable = false}) {
+  String _getTypeName(DartType type, {bool showNullability = false}) {
     if (type is DynamicType) return 'dynamic';
     if (type is VoidType) return 'void';
 
     if (type is InterfaceType) {
-      final element = type.element;
-      final library = element.library;
+      final element = type.element3;
+      final library = element.library2;
 
       // Get prefix (will be empty for dart:core)
       String prefix = importCollector.getPrefix(library);
       String typeName = prefix.isEmpty
-          ? element.name!
-          : '${prefix.substring(0, prefix.length - 1)}.${element.name}';
+          ? element.name3!
+          : '${prefix.substring(0, prefix.length - 1)}.${element.name3}';
 
       // Handle type arguments (generics)
       if (type.typeArguments.isNotEmpty) {
         final args = type.typeArguments
-            .map((arg) => _getTypeName(arg, nullable: nullable))
+            .map((arg) => _getTypeName(arg, showNullability: showNullability))
             .join(', ');
         typeName = '$typeName<$args>';
       }
 
       // Handle nullability
-      if (type.nullabilitySuffix == NullabilitySuffix.question && !nullable) {
+      if (type.nullabilitySuffix == NullabilitySuffix.question && !showNullability) {
         typeName = '$typeName?';
       }
 
@@ -691,7 +696,7 @@ class CodeEmitter {
 
     // Fallback for other types
 
-    return type.getDisplayString(withNullability: !nullable);
+    return type.getDisplayString(withNullability: !showNullability);
   }
 
   /// Generate meta.type() call with proper arguments and nullability
@@ -700,14 +705,14 @@ class CodeEmitter {
     if (type is VoidType) return 'meta.type<void>()';
 
     if (type is InterfaceType) {
-      final element = type.element;
-      final library = element.library;
+      final element = type.element3;
+      final library = element.library2;
 
       // Build type name with prefix
       String prefix = importCollector.getPrefix(library);
       String typeName = prefix.isEmpty
-          ? element.name!
-          : '${prefix.substring(0, prefix.length - 1)}.${element.name}';
+          ? element.name3!
+          : '${prefix.substring(0, prefix.length - 1)}.${element.name3}';
 
       // Build type arguments for generics
       final hasTypeArgs = type.typeArguments.isNotEmpty;
@@ -715,7 +720,7 @@ class CodeEmitter {
 
       if (hasTypeArgs) {
         final typeArgsString = type.typeArguments
-            .map((arg) => _getTypeName(arg, nullable: true))
+            .map((arg) => _getTypeName(arg, showNullability: true))
             .join(', ');
 
         final metaTypeArgs = type.typeArguments
@@ -757,11 +762,11 @@ class CodeEmitter {
       ) {
     // Determine the type to use
     final DartType typeToUse = injectInfo?.injectType ?? param.type;
-    final String typeName = _getTypeName(typeToUse, nullable: true);
+    final String typeName = _getTypeName(typeToUse, showNullability: false);
 
     // Build the injector call
     if (injectInfo?.name != null) {
-      return "i<$typeName>('${injectInfo!.name}')";
+      return "i('${injectInfo!.name}')";
     } else {
       return 'i<$typeName>()';
     }

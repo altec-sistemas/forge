@@ -1,5 +1,5 @@
 import 'package:analyzer/dart/ast/ast.dart';
-import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:build/build.dart';
@@ -15,29 +15,29 @@ class AnnotationCodeGenerator {
 
   /// Extract metadata code from an element's AST
   Future<String> extractMetadataCode(
-    Element element,
+    Element2 element,
     AssetId dataId,
   ) async {
     // Synthetic elements don't have metadata
     if ((element is GetterElement ||
             element is SetterElement ||
-            element is ConstructorElement) &&
+            element is ConstructorElement2) &&
         element.isSynthetic) {
       return 'const []';
     }
 
     // Skip platform libraries
-    if (_isPlatformLibrary(element.library)) {
+    if (_isPlatformLibrary(element.library2)) {
       return 'const []';
     }
 
     NodeList<Annotation>? metadata;
     ResolvedLibraryResult? resolvedLibrary = await _getResolvedLibrary(
-      element.library!,
+      element.library2!,
       resolver,
     );
 
-    if (element is LibraryElement && resolvedLibrary != null) {
+    if (element is LibraryElement2 && resolvedLibrary != null) {
       metadata = _getLibraryMetadata(_definingLibraryFragment(resolvedLibrary));
     } else {
       metadata = _getOtherMetadata(
@@ -50,7 +50,7 @@ class AnnotationCodeGenerator {
 
     var metadataParts = <String>[];
     for (Annotation annotationNode in metadata) {
-      Element? annotationNodeElement = annotationNode.element;
+      Element2? annotationNodeElement = annotationNode.element2;
       if (annotationNodeElement == null) {
         // Unresolved annotation, skip it
         continue;
@@ -61,7 +61,7 @@ class AnnotationCodeGenerator {
         continue;
       }
 
-      LibraryElement annotationLibrary = annotationNodeElement.library!;
+      LibraryElement2 annotationLibrary = annotationNodeElement.library2!;
       importCollector.registerLibraryWithImport(
         annotationLibrary,
         annotationLibrary.uri.toString(),
@@ -102,7 +102,7 @@ class AnnotationCodeGenerator {
     String typeAnnotationHelper(TypeAnnotation typeName) {
       DartType? interfaceType = typeName.type;
       if (interfaceType is InterfaceType) {
-        LibraryElement library = interfaceType.element.library;
+        LibraryElement2 library = interfaceType.element3.library2;
         String prefix = importCollector.getPrefix(library);
         return '$prefix$typeName';
       } else {
@@ -154,11 +154,11 @@ class AnnotationCodeGenerator {
         var identifier = expression.identifier;
 
         // Check if prefix is a library prefix
-        if (prefix.element is PrefixElement) {
+        if (prefix.element is PrefixElement2) {
           // Get the library and add it
           var element = identifier.element;
           if (element != null) {
-            LibraryElement library = element.library!;
+            LibraryElement2 library = element.library2!;
             String libPrefix = importCollector.getPrefix(library);
             return '$libPrefix${identifier.token.lexeme}';
           }
@@ -166,8 +166,8 @@ class AnnotationCodeGenerator {
 
         // Otherwise it's a class member reference (e.g., MyClass.value)
         var element = identifier.element;
-        if (element != null && element.library != null) {
-          LibraryElement library = element.library!;
+        if (element != null && element.library2 != null) {
+          LibraryElement2 library = element.library2!;
           String libPrefix = importCollector.getPrefix(library);
           return '$libPrefix${prefix.token.lexeme}.${identifier.token.lexeme}';
         }
@@ -175,8 +175,8 @@ class AnnotationCodeGenerator {
         return expression.name;
       } else if (expression is SimpleIdentifier) {
         var element = expression.element;
-        if (element != null && element.library != null) {
-          LibraryElement library = element.library!;
+        if (element != null && element.library2 != null) {
+          LibraryElement2 library = element.library2!;
           String prefix = importCollector.getPrefix(library);
           return '$prefix${expression.token.lexeme}';
         }
@@ -187,12 +187,12 @@ class AnnotationCodeGenerator {
         SimpleIdentifier? constructorIdentifier = constructorName.name;
 
         // Get the class element
-        var element = namedType.element;
-        if (element is InterfaceElement) {
-          LibraryElement library = element.library;
+        var element = namedType.element2;
+        if (element is InterfaceElement2) {
+          LibraryElement2 library = element.library2;
           String prefix = importCollector.getPrefix(library);
 
-          String className = element.name ?? '';
+          String className = element.name3 ?? '';
           String fullName = constructorIdentifier != null
               ? '$className.${constructorIdentifier.name}'
               : className;
@@ -301,7 +301,7 @@ class AnnotationCodeGenerator {
       name = identifier.token.lexeme;
     } else if (identifier is PrefixedIdentifier) {
       // Check if prefix is a library prefix
-      if (identifier.prefix.element is PrefixElement) {
+      if (identifier.prefix.element is PrefixElement2) {
         // Strip library prefix, we'll add our own
         name = identifier.identifier.token.lexeme;
       } else {
@@ -316,7 +316,7 @@ class AnnotationCodeGenerator {
 
   /// Get resolved library
   static Future<ResolvedLibraryResult?> _getResolvedLibrary(
-    LibraryElement library,
+    LibraryElement2 library,
     Resolver resolver,
   ) async {
     try {
@@ -344,7 +344,7 @@ class AnnotationCodeGenerator {
   static CompilationUnit? _definingLibraryFragment(
     ResolvedLibraryResult resolvedLibrary,
   ) {
-    LibraryFragment definingFragment = resolvedLibrary.element.firstFragment;
+    LibraryFragment definingFragment = resolvedLibrary.element2.firstFragment;
     List<ResolvedUnitResult> units = resolvedLibrary.units;
     for (var unit in units) {
       if (unit.unit.declaredFragment == definingFragment) {
@@ -369,7 +369,7 @@ class AnnotationCodeGenerator {
   /// Get metadata from other elements
   static NodeList<Annotation>? _getOtherMetadata(
     AstNode? node,
-    Element element,
+    Element2 element,
   ) {
     if (node == null) {
       return null;
@@ -380,7 +380,7 @@ class AnnotationCodeGenerator {
     }
 
     // For fields and top-level variables, metadata is on parent nodes
-    if (element is FieldElement || element is TopLevelVariableElement) {
+    if (element is FieldElement2 || element is TopLevelVariableElement2) {
       node = node.parent?.parent;
       if (node == null) return null;
     }
@@ -395,23 +395,23 @@ class AnnotationCodeGenerator {
   }
 
   /// Check if library is a platform library (dart:*)
-  static bool _isPlatformLibrary(LibraryElement? library) {
+  static bool _isPlatformLibrary(LibraryElement2? library) {
     if (library == null) return false;
     return library.uri.scheme == 'dart';
   }
 
   /// Check if an element can be imported
   static bool _isImportable(
-    Element element,
+    Element2 element,
     AssetId dataId,
   ) {
     // Private elements can't be imported
-    if (element.name?.startsWith('_') ?? false) {
+    if (element.name3?.startsWith('_') ?? false) {
       return false;
     }
 
     // Check if the library is accessible
-    LibraryElement? library = element.library;
+    LibraryElement2? library = element.library2;
     if (library == null) return false;
 
     // Platform private libraries can't be imported

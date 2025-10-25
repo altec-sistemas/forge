@@ -8,9 +8,6 @@ environment:
 dev_dependencies:
   lints: ^6.0.0
 
-dependency_overrides:
-  test_api: ^0.7.7
-
 workspace:
   - packages/forge
   - packages/forge_builder

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/element2.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:glob/glob.dart';
@@ -15,7 +15,7 @@ import 'import_collector.dart';
 class BundleGenerator {
   final BuildStep buildStep;
   final Resolver resolver;
-  final ClassElement bundleClass;
+  final ClassElement2 bundleClass;
   final DartObject annotation;
 
   BundleGenerator({
@@ -53,7 +53,7 @@ class BundleGenerator {
     );
 
     final generatedCode = await codeEmitter.generateBundleCode(
-      bundleClassName: bundleClass.name ?? 'Bundle',
+      bundleClassName: bundleClass.name3!,
       scannedData: scannedData,
     );
 
@@ -163,7 +163,7 @@ class ScannedData {
 
 /// Data about a class with metadata
 class ClassData {
-  final ClassElement element;
+  final ClassElement2 element;
   final List<ConstructorData>? constructors;
   final List<MethodData>? methods;
   final List<GetterData>? getters;
@@ -186,7 +186,7 @@ class ClassData {
 
 /// Data about a constructor
 class ConstructorData {
-  final ConstructorElement element;
+  final ConstructorElement2 element;
   final List<DartObject> annotations;
   final List<InjectInfo> parameterInjects;
 
@@ -219,7 +219,7 @@ class InjectInfo {
 
 /// Data about a method
 class MethodData {
-  final MethodElement element;
+  final MethodElement2 element;
   final List<DartObject> annotations;
   final List<InjectInfo> parameterInjects;
 
@@ -250,7 +250,7 @@ class SetterData {
 
 /// Data about a module
 class ModuleData {
-  final ClassElement element;
+  final ClassElement2 element;
   final List<ProviderData> providers;
   final List<BootMethodData> bootMethods;
 
@@ -262,7 +262,7 @@ class ModuleData {
 }
 
 class BootMethodData {
-  final ExecutableElement method;
+  final ExecutableElement2 method;
   final DartObject annotation;
   final List<InjectInfo> parameterInjects;
 
@@ -275,7 +275,7 @@ class BootMethodData {
 
 /// Data about a provider method
 class ProviderData {
-  final FunctionTypedElement method;
+  final FunctionTypedElement2 method;
   final DartObject annotation;
   final String? name;
   final String? env;
@@ -298,7 +298,7 @@ class ProviderData {
 
 /// Data about a service (class with @Injectable)
 class ServiceData {
-  final ClassElement element;
+  final ClassElement2 element;
   final bool isSingleton;
   final DartObject annotation;
   final List<InjectInfo> constructorInjects;
@@ -317,7 +317,7 @@ class ServiceData {
 
 /// Data about an enum
 class EnumData {
-  final EnumElement element;
+  final EnumElement2 element;
   final List<EnumValueData> values;
   final List<GetterData>? getters;
 
@@ -330,7 +330,7 @@ class EnumData {
 
 /// Data about an enum value
 class EnumValueData {
-  final FieldElement element;
+  final FieldElement2 element;
 
   EnumValueData({
     required this.element,
@@ -339,7 +339,7 @@ class EnumValueData {
 
 /// Data about a method marked with @Required
 class RequiredMethodData {
-  final MethodElement element;
+  final MethodElement2 element;
   final List<InjectInfo> parameterInjects;
 
   RequiredMethodData({
