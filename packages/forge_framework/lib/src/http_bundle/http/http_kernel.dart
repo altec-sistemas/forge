@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../../forge.dart';
+import '../../../forge_framework.dart';
 
 class HttpKernel {
   final EventBus eventBus;

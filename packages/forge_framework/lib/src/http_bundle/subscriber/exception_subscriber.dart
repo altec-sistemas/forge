@@ -1,4 +1,4 @@
-import '../../../forge.dart';
+import '../../../forge_framework.dart';
 
 class ExceptionSubscriber implements EventSubscriber {
   @override

@@ -1,4 +1,4 @@
-import '../../../forge.dart';
+import '../../../forge_framework.dart';
 import '../exception/argument_resolver_exception.dart';
 
 /// Wrapper for resolved argument values.

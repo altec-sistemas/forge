@@ -1,4 +1,4 @@
-import '../../forge.dart';
+import '../../forge_framework.dart';
 import 'http/http_kernel.dart';
 import 'runner/http_runner.dart';
 import 'subscriber/exception_subscriber.dart';

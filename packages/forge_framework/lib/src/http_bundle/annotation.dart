@@ -1,6 +1,6 @@
 import 'package:meta/meta_meta.dart';
 
-import '../../forge.dart';
+import '../../forge_framework.dart';
 
 @Target({TargetKind.classType})
 class Controller extends Service implements DeclarationsCapability {

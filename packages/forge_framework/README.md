@@ -12,12 +12,21 @@ Forge is a modular framework that uses code generation to handle routing, depend
 
 ## Getting Started
 
+## Installation
+
+run the following command to add Forge to your project:
+
+```bash
+dart pub add forge dev:forge_builder
+```
+
+
 ### Basic Setup
 
 Create a bundle and initialize the kernel:
 
 ```dart
-import 'package:forge/forge.dart';
+import 'package:forge_framework/forge_framework.dart';
 import 'forge_example.bundle.dart';
 
 void main() {
@@ -683,7 +692,7 @@ final methods = classMetadata.methods;
 ## Complete Example
 
 ```dart
-import 'package:forge/forge.dart';
+import 'package:forge_framework/forge_framework.dart';
 import 'app.bundle.dart';
 
 void main() {

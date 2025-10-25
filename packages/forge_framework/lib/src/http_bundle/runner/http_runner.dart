@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:shelf/shelf_io.dart';
 
-import '../../../forge.dart';
+import '../../../forge_framework.dart';
 import '../http/http_kernel.dart';
 
 class HttpRunner implements Runner {

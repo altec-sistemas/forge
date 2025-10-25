@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:forge/forge.dart';
+import 'package:forge_framework/forge_framework.dart';
 import 'dart:async';
 
 class TestBundle extends Bundle {

@@ -1,4 +1,4 @@
-name: forge_framework
+name: forge
 description: A starting point for Dart libraries or applications.
 publish_to: none
 
@@ -9,7 +9,7 @@ dev_dependencies:
   lints: ^6.0.0
 
 workspace:
-  - packages/forge
+  - packages/forge_framework
   - packages/forge_builder
   - packages/forge_flutter
   - packages/forge_flutter/example
