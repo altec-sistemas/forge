@@ -1,6 +1,6 @@
 name: forge_core
 description: Core for forge_framework and forge_flutter packages, including annotations and injector , serialization, validation, etc.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/altec-sistemas/forge
 resolution: workspace
 # repository: https://github.com/my_org/my_repo
