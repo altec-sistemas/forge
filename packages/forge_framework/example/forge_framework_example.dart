@@ -1,6 +1,6 @@
 import 'package:forge_framework/forge_framework.dart';
 
-import 'forge_example.bundle.dart';
+import 'forge_framework_example.bundle.dart';
 
 void main() {
   final forge = Kernel('dev')..addBundle(ExampleBundle());
