@@ -349,6 +349,7 @@ void main() {
           constructors: [],
         ),
       );
+
       final testRegistry = builder.build();
       final testSerializer = Serializer(
         transformers: [MetadataTransformer(testRegistry)],

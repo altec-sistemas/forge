@@ -1,10 +1,13 @@
 import '../../../forge_core.dart';
 
+/// Cache puro de propriedades - SEM filtros aplicados
+/// A filtragem acontece dinamicamente no momento de uso
 class _PropertyCache {
+  // Cache PURO - contém TODAS as propriedades sem filtros
   final Map<String, GetterMetadata> gettersByName = {};
   final Map<String, SetterMetadata> settersByName = {};
-  final List<GetterMetadata> activeGetters = [];
-  final List<SetterMetadata> activeSetters = [];
+  final List<GetterMetadata> allGetters = [];
+  final List<SetterMetadata> allSetters = [];
 }
 
 class _MetadataCache {
@@ -13,59 +16,87 @@ class _MetadataCache {
   final Map<Type, EnumMetadata> _enumMetadata = {};
   final Map<Type, bool> _typeChecks = {};
 
-  _PropertyCache getPropertyCache(
-    ClassMetadata metadata,
-    SerializerContext context,
-  ) {
+  /// Retorna o cache PURO de propriedades (sem filtros aplicados)
+  /// A filtragem por grupos/contexto deve ser feita posteriormente
+  _PropertyCache getPropertyCache(ClassMetadata metadata) {
     final key = metadata.typeMetadata.type;
 
     var cache = _classCache[key];
     if (cache != null) return cache;
 
+    // Cria cache PURO com TODAS as propriedades
     cache = _PropertyCache();
 
     if (metadata.hasMappedGetters) {
       for (final getter in metadata.getters!) {
+        // Adiciona TODOS os getters sem filtrar
         cache.gettersByName[getter.name] = getter;
-
-        if (getter.hasAnnotation<Ignore>() && !context.showIgnored) {
-          continue;
-        }
-
-        final propertyAnnotation = getter.firstAnnotationOf<Property>();
-        if (context.groups.isNotEmpty && propertyAnnotation?.groups != null) {
-          final hasMatchingGroup = propertyAnnotation!.groups!.any(
-            (group) => context.groups.contains(group),
-          );
-          if (!hasMatchingGroup) continue;
-        }
-
-        cache.activeGetters.add(getter);
+        cache.allGetters.add(getter);
       }
     }
 
     if (metadata.hasMappedSetters) {
       for (final setter in metadata.setters!) {
+        // Adiciona TODOS os setters sem filtrar
         cache.settersByName[setter.name] = setter;
-
-        if (setter.hasAnnotation<Ignore>() && !context.showIgnored) {
-          continue;
-        }
-
-        final propertyAnnotation = setter.firstAnnotationOf<Property>();
-        if (context.groups.isNotEmpty && propertyAnnotation?.groups != null) {
-          final hasMatchingGroup = propertyAnnotation!.groups!.any(
-            (group) => context.groups.contains(group),
-          );
-          if (!hasMatchingGroup) continue;
-        }
-
-        cache.activeSetters.add(setter);
+        cache.allSetters.add(setter);
       }
     }
 
     _classCache[key] = cache;
     return cache;
+  }
+
+  /// Filtra getters baseado no contexto DINAMICAMENTE
+  /// Este método NÃO usa cache - executa a filtragem toda vez
+  List<GetterMetadata> filterGetters(
+    _PropertyCache cache,
+    SerializerContext context,
+  ) {
+    // Filtragem dinâmica - não cacheada
+    return cache.allGetters.where((getter) {
+      // Filtro 1: Ignore annotation
+      if (getter.hasAnnotation<Ignore>() && !context.showIgnored) {
+        return false;
+      }
+
+      // Filtro 2: Groups
+      final propertyAnnotation = getter.firstAnnotationOf<Property>();
+      if (context.groups.isNotEmpty && propertyAnnotation?.groups != null) {
+        final hasMatchingGroup = propertyAnnotation!.groups!.any(
+          (group) => context.groups.contains(group),
+        );
+        return hasMatchingGroup;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// Filtra setters baseado no contexto DINAMICAMENTE
+  /// Este método NÃO usa cache - executa a filtragem toda vez
+  List<SetterMetadata> filterSetters(
+    _PropertyCache cache,
+    SerializerContext context,
+  ) {
+    // Filtragem dinâmica - não cacheada
+    return cache.allSetters.where((setter) {
+      // Filtro 1: Ignore annotation
+      if (setter.hasAnnotation<Ignore>() && !context.showIgnored) {
+        return false;
+      }
+
+      // Filtro 2: Groups
+      final propertyAnnotation = setter.firstAnnotationOf<Property>();
+      if (context.groups.isNotEmpty && propertyAnnotation?.groups != null) {
+        final hasMatchingGroup = propertyAnnotation!.groups!.any(
+          (group) => context.groups.contains(group),
+        );
+        return hasMatchingGroup;
+      }
+
+      return true;
+    }).toList();
   }
 
   void clear() {
@@ -166,10 +197,15 @@ class MetadataTransformer implements Transformer, SerializerAware {
       throw SerializerException('Class $T has no mapped getters');
     }
 
-    final cache = _cache.getPropertyCache(metadata, context);
+    // 1. Obtém cache PURO (sem filtros)
+    final cache = _cache.getPropertyCache(metadata);
+
+    // 2. Aplica filtros DINAMICAMENTE baseado no contexto ATUAL
+    final activeGetters = _cache.filterGetters(cache, context);
+
     final result = <String, dynamic>{};
 
-    for (final getterMeta in cache.activeGetters) {
+    for (final getterMeta in activeGetters) {
       var effectiveContext = context;
 
       if (getterMeta.hasAnnotation<EnumDelimiter>()) {
@@ -281,43 +317,39 @@ class MetadataTransformer implements Transformer, SerializerAware {
   ) {
     if (value is! List) {
       throw SerializerException(
-        'Expected List for normalization of type ${type.type}, got ${value.runtimeType}',
+        'Expected List for normalization, got ${value.runtimeType}',
       );
     }
 
     final itemType = type.typeArguments.first;
 
-    final normalized = itemType.captureGeneric(
-      <S>() => value.map((item) {
-        return _normalizeValue<S>(
+    return value.map((item) {
+      if (item == null) return null;
+      return itemType.captureGeneric(
+        <S>() => _normalizeValue<S>(
           item as S?,
           itemType as TypeMetadata<S>,
           context,
-        );
-      }).toList(),
-    );
-
-    if (itemType.captureGeneric(<S>() => <S>[] is List<Enum>) &&
-        context.enumDelimiter != null) {
-      return normalized.join(context.enumDelimiter!);
-    }
-
-    return normalized;
+        ),
+      );
+    }).toList();
   }
 
   @override
   T denormalize<T>(dynamic data, SerializerContext context) {
-    if (data == null) return null as T;
+    if (data == null) {
+      throw SerializerException('Cannot denormalize null data');
+    }
 
     if (_metadataRegistry.hasEnumMetadata<T>()) {
       final metadata = _metadataRegistry.getEnumMetadata<T>();
-      return _denormalizeEnum(data, metadata, context);
+      return _denormalizeEnum(data, metadata, context) as T;
     }
 
     if (<T>[] is List<List>) {
       final enumMeta = _getEnumMetadataForList<T>();
       if (enumMeta != null) {
-        return _denormalizeEnumList(data, enumMeta, context);
+        return _denormalizeEnumList<T>(data, enumMeta, context);
       }
 
       final classMeta = _getClassMetadataForList<T>();
@@ -339,13 +371,21 @@ class MetadataTransformer implements Transformer, SerializerAware {
     ClassMetadata metadata,
     SerializerContext context,
   ) {
-    if (!metadata.hasMappedConstructors || metadata.constructors!.isEmpty) {
-      throw SerializerException('Class $T has no mapped constructors');
+    if (data is! Map) {
+      throw SerializerException(
+        'Expected Map for denormalization, got ${data.runtimeType}',
+      );
     }
 
-    final constructor = metadata.constructors!.first;
-    final positionalArgs = <dynamic>[];
-    final namedArgs = <Symbol, dynamic>{};
+    final constructor = metadata.constructors?.firstOrNull;
+    if (constructor == null) {
+      throw SerializerException(
+        'No constructor found for class ${metadata.typeMetadata.type}',
+      );
+    }
+
+    final List<dynamic> positionalArgs = [];
+    final Map<Symbol, dynamic> namedArgs = {};
 
     if (constructor.hasMappedParameters) {
       for (final param in constructor.parameters!) {
@@ -586,9 +626,13 @@ class MetadataTransformer implements Transformer, SerializerAware {
     ClassMetadata metadata,
     SerializerContext context,
   ) {
-    final cache = _cache.getPropertyCache(metadata, context);
+    // 1. Obtém cache PURO (sem filtros)
+    final cache = _cache.getPropertyCache(metadata);
 
-    for (final setterMeta in cache.activeSetters) {
+    // 2. Aplica filtros DINAMICAMENTE baseado no contexto ATUAL
+    final activeSetters = _cache.filterSetters(cache, context);
+
+    for (final setterMeta in activeSetters) {
       final propertyAnnotation = setterMeta.firstAnnotationOf<Property>();
       final propertyName = propertyAnnotation?.name ?? setterMeta.name;
       dynamic value = data[propertyName];

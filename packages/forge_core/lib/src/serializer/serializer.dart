@@ -233,7 +233,7 @@ class _SerializerImpl implements Serializer {
     }
 
     throw SerializerException(
-      'No transformer found for denormalizing data to type: $T ${data}',
+      'No transformer found for denormalizing data to type: $T value $data',
     );
   }
 
@@ -303,7 +303,7 @@ class PrimitiveTransformer implements Transformer {
   @override
   bool supportsDenormalization<T>(dynamic data, SerializerContext context) {
     return _primitiveTypes.contains(T) ||
-        _primitiveTypes.contains(data.runtimeType);
+        (_primitiveTypes.contains(data.runtimeType) && T == dynamic);
   }
 
   @override
@@ -352,6 +352,8 @@ class PrimitiveTransformer implements Transformer {
 class ListTransformer implements Transformer, SerializerAware {
   late Serializer _serializer;
 
+  static final _primitiveTypes = {int, double, num, String, bool, DateTime};
+
   @override
   void setSerializer(Serializer serializer) {
     _serializer = serializer;
@@ -364,7 +366,43 @@ class ListTransformer implements Transformer, SerializerAware {
 
   @override
   bool supportsDenormalization<T>(dynamic data, SerializerContext context) {
+    // Suporta listas de tipos primitivos
+    if (<T>[] is List<List> && data is List) {
+      // Verifica se é uma lista de primitivos
+      if (_isListOfPrimitives<T>()) {
+        return true;
+      }
+    }
     return false;
+  }
+
+  bool _isListOfPrimitives<T>() {
+    // Checa se T é List<PrimitiveType>
+    for (final primitiveType in _primitiveTypes) {
+      if (_checkListType<T>(primitiveType)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _checkListType<T>(Type primitiveType) {
+    if (primitiveType == int) return <T>[] is List<List<int>>;
+    if (primitiveType == double) return <T>[] is List<List<double>>;
+    if (primitiveType == num) return <T>[] is List<List<num>>;
+    if (primitiveType == String) return <T>[] is List<List<String>>;
+    if (primitiveType == bool) return <T>[] is List<List<bool>>;
+    if (primitiveType == DateTime) return <T>[] is List<List<DateTime>>;
+    return false;
+  }
+
+  Type? _getListItemType<T>() {
+    for (final primitiveType in _primitiveTypes) {
+      if (_checkListType<T>(primitiveType)) {
+        return primitiveType;
+      }
+    }
+    return null;
   }
 
   @override
@@ -389,9 +427,43 @@ class ListTransformer implements Transformer, SerializerAware {
 
   @override
   T denormalize<T>(dynamic data, SerializerContext context) {
-    throw SerializerException(
-      'ListTransformer does not support denormalization. Use ObjectTransformer instead.',
+    if (data is! List) {
+      throw SerializerException('Esperava List, recebeu ${data.runtimeType}');
+    }
+
+    final itemType = _extractItemTypeFromT(T);
+    final denormalized = data.map(
+      (e) => _serializer.denormalize<dynamic>(e, context),
     );
+
+    return switch (itemType) {
+      'String' => denormalized.cast<String>().toList() as T,
+      'int' => denormalized.cast<int>().toList() as T,
+      'double' => denormalized.cast<double>().toList() as T,
+      'bool' => denormalized.cast<bool>().toList() as T,
+      'DateTime' => denormalized.cast<DateTime>().toList() as T,
+      _ => denormalized.toList() as T,
+    };
+  }
+
+  String? _extractItemTypeFromT(Type t) {
+    final typeString = t.toString();
+    final regex = RegExp(r'List<(.+)>');
+    final match = regex.firstMatch(typeString);
+    if (match != null && match.groupCount == 1) {
+      final itemTypeString = match.group(1);
+      switch (itemTypeString) {
+        case 'String':
+        case 'int':
+        case 'double':
+        case 'bool':
+        case 'DateTime':
+          return itemTypeString;
+        default:
+          return null;
+      }
+    }
+    return null;
   }
 }
 

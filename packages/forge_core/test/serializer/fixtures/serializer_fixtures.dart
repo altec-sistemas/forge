@@ -65,108 +65,201 @@ void buildMetadata(MetadataRegistryBuilder metaBuilder) {
   metaBuilder.registerClass<User>(
     meta.clazz(
       meta.type<User>(),
-      [Mappable()],
+      const <Object>[Mappable()],
       [
-        meta.constructor(() => User.new, [
-          meta.parameter(meta.type<String>(), 'name', 0, false, false, false),
-          meta.parameter(meta.type<int>(), 'age', 1, false, false, false),
-          meta.parameter(meta.type<String>(), 'email', 2, true, true, false),
-          meta.parameter(
-            meta.type<List>([meta.type<String>()]),
-            'tags',
-            3,
-            true,
-            true,
-            false,
-          ),
-        ]),
-      ],
-      null,
-      [
-        meta.getter(meta.type<String>(), 'name', (instance) => instance.name),
-        meta.getter(meta.type<int>(), 'age', (instance) => instance.age),
-        meta.getter(meta.type<String>(), 'email', (instance) => instance.email),
-        meta.getter(
-          meta.type<List>([meta.type<String>()]),
-          'tags',
-          (instance) => instance.tags,
+        meta.constructor(
+          () => User.new,
+          [
+            meta.parameter(
+              meta.type<String>(),
+              'name',
+              0,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<int>(),
+              'age',
+              1,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<String>([], true),
+              'email',
+              2,
+              true,
+              true,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<List<String>>([meta.type<String>()], true),
+              'tags',
+              3,
+              true,
+              true,
+              null,
+              const [],
+            ),
+          ],
+          'new',
+          const [],
         ),
       ],
-      null,
+      null, // methods
+      [
+        meta.getter(
+          meta.type<String>(),
+          'name',
+          (instance) => instance.name,
+          const [],
+        ),
+        meta.getter(
+          meta.type<int>(),
+          'age',
+          (instance) => instance.age,
+          const [],
+        ),
+        meta.getter(
+          meta.type<String>([], true),
+          'email',
+          (instance) => instance.email,
+          const [],
+        ),
+        meta.getter(
+          meta.type<List<String>>([meta.type<String>()], true),
+          'tags',
+          (instance) => instance.tags,
+          const [],
+        ),
+      ],
+      null, // setters
     ),
   );
 
   metaBuilder.registerClass<Product>(
     meta.clazz(
       meta.type<Product>(),
-      [Mappable()],
+      const <Object>[Mappable()],
       [
-        meta.constructor(() => Product.new, [
-          meta.parameter(meta.type<String>(), 'name', 0, false, false, false),
-          meta.parameter(meta.type<double>(), 'price', 1, false, false, false),
-          meta.parameter(
-            meta.type<String>(),
-            'internalCode',
-            2,
-            true,
-            true,
-            false,
-          ),
-        ]),
-      ],
-      null,
-      [
-        meta.getter(meta.type<String>(), 'name', (instance) => instance.name),
-        meta.getter(meta.type<double>(), 'price', (instance) => instance.price),
-        meta.getter(
-          meta.type<String>(),
-          'internalCode',
-          (instance) => instance.internalCode,
-          [Ignore()],
+        meta.constructor(
+          () => Product.new,
+          [
+            meta.parameter(
+              meta.type<String>(),
+              'name',
+              0,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<double>(),
+              'price',
+              1,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<String>([], true),
+              'internalCode',
+              2,
+              true,
+              true,
+              null,
+              const [],
+            ),
+          ],
+          'new',
+          const [],
         ),
       ],
-      null,
+      null, // methods
+      [
+        meta.getter(
+          meta.type<String>(),
+          'name',
+          (instance) => instance.name,
+          const [],
+        ),
+        meta.getter(
+          meta.type<double>(),
+          'price',
+          (instance) => instance.price,
+          const [],
+        ),
+        meta.getter(
+          meta.type<String>([], true),
+          'internalCode',
+          (instance) => instance.internalCode,
+          const <Object>[Ignore()],
+        ),
+      ],
+      null, // setters
     ),
   );
 
   metaBuilder.registerClass<Order>(
     meta.clazz(
       meta.type<Order>(),
-      [Mappable()],
+      const <Object>[Mappable()],
       [
-        meta.constructor(() => Order.new, [
-          meta.parameter(
-            meta.type<String>(),
-            'orderId',
-            0,
-            false,
-            false,
-            false,
-          ),
-          meta.parameter(
-            meta.type<double>(),
-            'totalAmount',
-            1,
-            false,
-            false,
-            false,
-          ),
-          meta.parameter(meta.type<String>(), 'status', 2, false, false, false),
-        ]),
+        meta.constructor(
+          () => Order.new,
+          [
+            meta.parameter(
+              meta.type<String>(),
+              'orderId',
+              0,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<double>(),
+              'totalAmount',
+              1,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<String>(),
+              'status',
+              2,
+              false,
+              false,
+              null,
+              const [],
+            ),
+          ],
+          'new',
+          const [],
+        ),
       ],
-      null,
+      null, // methods
       [
         meta.getter(
           meta.type<String>(),
           'orderId',
           (instance) => instance.orderId,
-          [Property(name: 'order_id')],
+          const <Object>[Property(name: 'order_id')],
         ),
         meta.getter(
           meta.type<double>(),
           'totalAmount',
           (instance) => instance.totalAmount,
-          [
+          const <Object>[
             Property(groups: ['admin']),
           ],
         ),
@@ -174,81 +267,159 @@ void buildMetadata(MetadataRegistryBuilder metaBuilder) {
           meta.type<String>(),
           'status',
           (instance) => instance.status,
-          [
+          const <Object>[
             Property(groups: ['public', 'admin']),
           ],
         ),
       ],
-      null,
+      null, // setters
     ),
   );
 
   metaBuilder.registerClass<Task>(
     meta.clazz(
       meta.type<Task>(),
-      [Mappable()],
+      const <Object>[Mappable()],
       [
-        meta.constructor(() => Task.new, [
-          meta.parameter(meta.type<String>(), 'title', 0, false, false, false),
-          meta.parameter(
-            meta.type<Priority>(),
-            'priority',
-            1,
-            false,
-            false,
-            false,
-          ),
-          meta.parameter(
-            meta.type<List>([meta.type<Status>()]),
-            'statuses',
-            2,
-            true,
-            true,
-            false,
-          ),
-        ]),
+        meta.constructor(
+          () => Task.new,
+          [
+            meta.parameter(
+              meta.type<String>(),
+              'title',
+              0,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<Priority>(),
+              'priority',
+              1,
+              false,
+              false,
+              null,
+              const [],
+            ),
+            meta.parameter(
+              meta.type<List<Status>>([meta.type<Status>()], true),
+              'statuses',
+              2,
+              true,
+              true,
+              null,
+              const [],
+            ),
+          ],
+          'new',
+          const [],
+        ),
       ],
-      null,
+      null, // methods
       [
-        meta.getter(meta.type<String>(), 'title', (instance) => instance.title),
+        meta.getter(
+          meta.type<String>(),
+          'title',
+          (instance) => instance.title,
+          const [],
+        ),
         meta.getter(
           meta.type<Priority>(),
           'priority',
           (instance) => instance.priority,
+          const [],
         ),
         meta.getter(
-          meta.type<List>([meta.type<Status>()]),
+          meta.type<List<Status>>([meta.type<Status>()], true),
           'statuses',
           (instance) => instance.statuses,
-          [EnumDelimiter(',')],
+          const <Object>[EnumDelimiter(',')],
         ),
       ],
-      null,
+      null, // setters
     ),
   );
 
   metaBuilder.registerEnum<Priority>(
     meta.enumMeta(
       meta.type<Priority>(),
-      [Mappable(), EnumExtractor('value')],
+      const <Object>[Mappable(), EnumExtractor('value')],
       [
-        meta.enumValue('low', Priority.low, 0),
-        meta.enumValue('medium', Priority.medium, 1),
-        meta.enumValue('high', Priority.high, 2),
+        meta.enumValue('low', Priority.low, 0, const []),
+        meta.enumValue('medium', Priority.medium, 1, const []),
+        meta.enumValue('high', Priority.high, 2, const []),
       ],
-      [meta.getter(meta.type<String>(), 'value', (instance) => instance.value)],
+      [
+        meta.getter(
+          meta.type<Priority>(),
+          'low',
+          (instance) => instance.low,
+          const [],
+        ),
+        meta.getter(
+          meta.type<Priority>(),
+          'medium',
+          (instance) => instance.medium,
+          const [],
+        ),
+        meta.getter(
+          meta.type<Priority>(),
+          'high',
+          (instance) => instance.high,
+          const [],
+        ),
+        meta.getter(
+          meta.type<List<Priority>>([meta.type<Priority>()]),
+          'values',
+          (instance) => instance.values,
+          const [],
+        ),
+        meta.getter(
+          meta.type<String>(),
+          'value',
+          (instance) => instance.value,
+          const [],
+        ),
+      ],
     ),
   );
+
   metaBuilder.registerEnum<Status>(
     meta.enumMeta(
       meta.type<Status>(),
-      [Mappable()],
+      const <Object>[Mappable()],
       [
-        meta.enumValue('active', Status.active, 0),
-        meta.enumValue('inactive', Status.inactive, 1),
-        meta.enumValue('pending', Status.pending, 2),
+        meta.enumValue('active', Status.active, 0, const []),
+        meta.enumValue('inactive', Status.inactive, 1, const []),
+        meta.enumValue('pending', Status.pending, 2, const []),
       ],
-      null,
+      [
+        meta.getter(
+          meta.type<Status>(),
+          'active',
+          (instance) => instance.active,
+          const [],
+        ),
+        meta.getter(
+          meta.type<Status>(),
+          'inactive',
+          (instance) => instance.inactive,
+          const [],
+        ),
+        meta.getter(
+          meta.type<Status>(),
+          'pending',
+          (instance) => instance.pending,
+          const [],
+        ),
+        meta.getter(
+          meta.type<List<Status>>([meta.type<Status>()]),
+          'values',
+          (instance) => instance.values,
+          const [],
+        ),
+      ],
     ),
   );
 }
