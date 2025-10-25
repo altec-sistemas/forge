@@ -5,5 +5,5 @@ mixin GenericCaller<T> {
 }
 
 bool isSameType<C, T>() {
-    return <C>[] is List<T>;
-  }
+  return <C>[] is List<T>;
+}

@@ -71,10 +71,10 @@ class BundleGenerator {
 
   /// Scan files matching the given patterns
   Future<ScannedData> _scanFiles(
-      List<String> paths,
-      List<String> excludePaths,
-      ImportCollector importCollector,
-      ) async {
+    List<String> paths,
+    List<String> excludePaths,
+    ImportCollector importCollector,
+  ) async {
     final scannedData = ScannedData();
     final processedFiles = <String>{};
 

@@ -18,10 +18,10 @@ class CodeEmitter {
   final StringBuffer _buffer = StringBuffer();
 
   CodeEmitter(
-      this.importCollector,
-      this.annotationGenerator,
-      this.inputId,
-      );
+    this.importCollector,
+    this.annotationGenerator,
+    this.inputId,
+  );
 
   /// Generate complete bundle code
   Future<String> generateBundleCode({
@@ -64,9 +64,9 @@ class CodeEmitter {
   }
 
   Future<void> _generateBundleClass(
-      String bundleClassName,
-      ScannedData data,
-      ) async {
+    String bundleClassName,
+    ScannedData data,
+  ) async {
     _buffer.writeln(
       'abstract class Abstract$bundleClassName implements Bundle {',
     );
@@ -126,7 +126,7 @@ class CodeEmitter {
       // Sort providers by priority (highest first)
       final sortedProviders = List<ProviderData>.from(module.providers);
       sortedProviders.sort(
-            (a, b) => (b.priority ?? 0).compareTo(a.priority ?? 0),
+        (a, b) => (b.priority ?? 0).compareTo(a.priority ?? 0),
       );
 
       // Register providers
@@ -137,9 +137,9 @@ class CodeEmitter {
   }
 
   void _generateProviderRegistration(
-      ModuleData module,
-      ProviderData provider,
-      ) {
+    ModuleData module,
+    ProviderData provider,
+  ) {
     final method = provider.method;
     final returnType = switch (method) {
       MethodElement m => m.returnType,
@@ -289,12 +289,13 @@ class CodeEmitter {
       // Find constructor (use default or first available)
       final constructor =
           service.element.unnamedConstructor2 ??
-              service.element.constructors2.firstOrNull;
+          service.element.constructors2.firstOrNull;
 
       if (constructor == null) continue;
 
       // Check if we have @Required methods or setters
-      final hasRequired = service.requiredMethods.isNotEmpty ||
+      final hasRequired =
+          service.requiredMethods.isNotEmpty ||
           service.requiredSetters.isNotEmpty;
 
       // Check if any @Required method is async
@@ -362,8 +363,8 @@ class CodeEmitter {
         for (final method in service.requiredMethods) {
           final methodName = method.element.name3;
           final returnType = method.element.returnType;
-          final isAsync = returnType.isDartAsyncFuture ||
-              returnType.isDartAsyncFutureOr;
+          final isAsync =
+              returnType.isDartAsyncFuture || returnType.isDartAsyncFutureOr;
 
           _buffer.write('        ');
           if (isAsync) {
@@ -461,9 +462,9 @@ class CodeEmitter {
   }
 
   Future<void> _generateConstructorMetadata(
-      ClassElement2 classElement,
-      ConstructorData constructor,
-      ) async {
+    ClassElement2 classElement,
+    ConstructorData constructor,
+  ) async {
     final element = constructor.element;
     final className = _getTypeName(classElement.thisType);
 
@@ -500,9 +501,9 @@ class CodeEmitter {
   }
 
   Future<void> _generateParameterMetadata(
-      FormalParameterElement param,
-      int index,
-      ) async {
+    FormalParameterElement param,
+    int index,
+  ) async {
     final isOptional = param.isOptional;
     final isNamed = param.isNamed;
 
@@ -562,7 +563,7 @@ class CodeEmitter {
 
     // Annotations - use the element
     _buffer.write('            ');
-    if (element.variable3 != null ) {
+    if (element.variable3 != null) {
       await _generateAnnotationsFromElement(element.variable3!);
       _buffer.writeln(',');
     }
@@ -587,7 +588,7 @@ class CodeEmitter {
 
     // Annotations - use the element
     _buffer.write('            ');
-    if (element.variable3 != null ) {
+    if (element.variable3 != null) {
       await _generateAnnotationsFromElement(element.variable3!);
       _buffer.writeln(',');
     }
@@ -634,10 +635,10 @@ class CodeEmitter {
   }
 
   Future<void> _generateEnumValueMetadata(
-      EnumValueData value,
-      int index,
-      String enumType,
-      ) async {
+    EnumValueData value,
+    int index,
+    String enumType,
+  ) async {
     final element = value.element;
     final elementName = element.name3;
 
@@ -687,7 +688,8 @@ class CodeEmitter {
       }
 
       // Handle nullability
-      if (type.nullabilitySuffix == NullabilitySuffix.question && !showNullability) {
+      if (type.nullabilitySuffix == NullabilitySuffix.question &&
+          !showNullability) {
         typeName = '$typeName?';
       }
 
@@ -757,9 +759,9 @@ class CodeEmitter {
   /// If InjectInfo has injectType, use that type instead of param.type
   /// If InjectInfo has name, add the name parameter
   String _generateInjectorCall(
-      FormalParameterElement param,
-      InjectInfo? injectInfo,
-      ) {
+    FormalParameterElement param,
+    InjectInfo? injectInfo,
+  ) {
     // Determine the type to use
     final DartType typeToUse = injectInfo?.injectType ?? param.type;
     final String typeName = _getTypeName(typeToUse, showNullability: false);

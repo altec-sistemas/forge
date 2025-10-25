@@ -48,7 +48,10 @@ class AnnotationProcessor {
       );
       _bootChecker = TypeChecker.typeNamed(Boot, inPackage: 'forge_core');
       _injectChecker = TypeChecker.typeNamed(Inject, inPackage: 'forge_core');
-      _requiredChecker = TypeChecker.typeNamed(Required, inPackage: 'forge_core');
+      _requiredChecker = TypeChecker.typeNamed(
+        Required,
+        inPackage: 'forge_core',
+      );
     } catch (e) {
       log.warning('Could not initialize type checkers: $e');
     }
@@ -114,7 +117,7 @@ class AnnotationProcessor {
             element: element,
             annotation: injectableAnnotation,
             isSingleton:
-            injectableAnnotation.getField('shared')?.toBoolValue() ?? true,
+                injectableAnnotation.getField('shared')?.toBoolValue() ?? true,
             constructorInjects: constructorInjects,
             requiredMethods: requiredMethods,
             requiredSetters: requiredSetters,
@@ -283,7 +286,7 @@ class AnnotationProcessor {
     for (final getter in element.getters2) {
       final annotations = [
         ..._getAnnotations(getter),
-        if (getter.variable3 != null) ..._getAnnotations(getter.variable3!)
+        if (getter.variable3 != null) ..._getAnnotations(getter.variable3!),
       ];
       for (final annotation in annotations) {
         if (_implementsCapability(annotation.type, 'GettersCapability')) {
@@ -332,9 +335,9 @@ class AnnotationProcessor {
 
   /// Merge class-level and member-level capabilities
   Capabilities _mergeCapabilities(
-      Capabilities classLevel,
-      Capabilities memberLevel,
-      ) {
+    Capabilities classLevel,
+    Capabilities memberLevel,
+  ) {
     return Capabilities(
       classLevelMethods: classLevel.classLevelMethods,
       classLevelConstructors: classLevel.classLevelConstructors,
@@ -342,16 +345,16 @@ class AnnotationProcessor {
       classLevelSetters: classLevel.classLevelSetters,
       classLevelParameters: classLevel.classLevelParameters,
       hasMethodsCapability:
-      classLevel.hasMethodsCapability || memberLevel.hasMethodsCapability,
+          classLevel.hasMethodsCapability || memberLevel.hasMethodsCapability,
       hasConstructorsCapability:
-      classLevel.hasConstructorsCapability ||
+          classLevel.hasConstructorsCapability ||
           memberLevel.hasConstructorsCapability,
       hasGettersCapability:
-      classLevel.hasGettersCapability || memberLevel.hasGettersCapability,
+          classLevel.hasGettersCapability || memberLevel.hasGettersCapability,
       hasSettersCapability:
-      classLevel.hasSettersCapability || memberLevel.hasSettersCapability,
+          classLevel.hasSettersCapability || memberLevel.hasSettersCapability,
       hasParametersCapability:
-      classLevel.hasParametersCapability ||
+          classLevel.hasParametersCapability ||
           memberLevel.hasParametersCapability,
     );
   }
@@ -376,8 +379,8 @@ class AnnotationProcessor {
           provideEagerAnnotation != null) {
         final annotation =
             provideAnnotation ??
-                provideSingletonAnnotation ??
-                provideEagerAnnotation!;
+            provideSingletonAnnotation ??
+            provideEagerAnnotation!;
 
         final nameField = annotation.getField('name');
         final envField = annotation.getField('env');
@@ -426,8 +429,8 @@ class AnnotationProcessor {
           provideEagerAnnotation != null) {
         final annotation =
             provideAnnotation ??
-                provideSingletonAnnotation ??
-                provideEagerAnnotation!;
+            provideSingletonAnnotation ??
+            provideEagerAnnotation!;
 
         final nameField = annotation.getField('name');
         final envField = annotation.getField('env');
@@ -491,9 +494,9 @@ class AnnotationProcessor {
 
   /// Process constructors based on capabilities
   List<ConstructorData> _processConstructors(
-      InterfaceElement2 element,
-      Capabilities capabilities,
-      ) {
+    InterfaceElement2 element,
+    Capabilities capabilities,
+  ) {
     final constructors = <ConstructorData>[];
 
     for (final constructor in element.constructors2) {
@@ -503,7 +506,7 @@ class AnnotationProcessor {
       // Member-level: only include if annotated with capability
       final shouldInclude =
           capabilities.classLevelConstructors ||
-              _hasCapability(annotations, 'ConstructorsCapability');
+          _hasCapability(annotations, 'ConstructorsCapability');
 
       if (shouldInclude) {
         final parameterInjects = _extractInjectInfo(
@@ -525,9 +528,9 @@ class AnnotationProcessor {
 
   /// Process methods based on capabilities
   List<MethodData> _processMethods(
-      InterfaceElement2 element,
-      Capabilities capabilities,
-      ) {
+    InterfaceElement2 element,
+    Capabilities capabilities,
+  ) {
     final methods = <MethodData>[];
 
     for (final method in element.methods2) {
@@ -537,7 +540,7 @@ class AnnotationProcessor {
       // Member-level: only include if annotated with capability
       final shouldInclude =
           capabilities.classLevelMethods ||
-              _hasCapability(annotations, 'MethodsCapability');
+          _hasCapability(annotations, 'MethodsCapability');
 
       if (shouldInclude) {
         final parameterInjects = _extractInjectInfo(method.formalParameters);
@@ -557,23 +560,22 @@ class AnnotationProcessor {
 
   /// Process getters based on capabilities
   List<GetterData> _processGetters(
-      InstanceElement2 element,
-      Capabilities capabilities,
-      ) {
+    InstanceElement2 element,
+    Capabilities capabilities,
+  ) {
     final getters = <GetterData>[];
 
     for (final getter in element.getters2) {
-
       final annotations = [
         ..._getAnnotations(getter),
-        if (getter.variable3 != null) ..._getAnnotations(getter.variable3!)
+        if (getter.variable3 != null) ..._getAnnotations(getter.variable3!),
       ];
 
       // Class-level capability: include ALL getters
       // Member-level: only include if annotated with capability
       final shouldInclude =
           capabilities.classLevelGetters ||
-              _hasCapability(annotations, 'GettersCapability');
+          _hasCapability(annotations, 'GettersCapability');
 
       if (shouldInclude) {
         getters.add(
@@ -589,9 +591,9 @@ class AnnotationProcessor {
 
   /// Process setters based on capabilities
   List<SetterData> _processSetters(
-      InterfaceElement2 element,
-      Capabilities capabilities,
-      ) {
+    InterfaceElement2 element,
+    Capabilities capabilities,
+  ) {
     final setters = <SetterData>[];
 
     for (final setter in element.setters2) {
@@ -601,7 +603,7 @@ class AnnotationProcessor {
       // Member-level: only include if annotated with capability
       final shouldInclude =
           capabilities.classLevelSetters ||
-              _hasCapability(annotations, 'SettersCapability');
+          _hasCapability(annotations, 'SettersCapability');
 
       if (shouldInclude) {
         setters.add(
@@ -816,8 +818,8 @@ class Capabilities {
   /// Check if there are any capabilities at all
   bool get hasAnyCapability =>
       hasMethodsCapability ||
-          hasConstructorsCapability ||
-          hasGettersCapability ||
-          hasSettersCapability ||
-          hasParametersCapability;
+      hasConstructorsCapability ||
+      hasGettersCapability ||
+      hasSettersCapability ||
+      hasParametersCapability;
 }

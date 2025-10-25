@@ -40,7 +40,11 @@ class HomeController {
   @Route.get('/pre-serialize')
   JsonResponse preSerialize() {
     return JsonResponse(
-      _serializer.serialize(User('some', 'john@email', '123'), 'json', SerializerContext(groups: ['public'])),
+      _serializer.serialize(
+        User('some', 'john@email', '123'),
+        'json',
+        SerializerContext(groups: ['public']),
+      ),
     );
   }
 }
