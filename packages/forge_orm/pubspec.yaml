@@ -1,6 +1,7 @@
 name: forge_orm
 description: ORM package for forge_framework, including database clients and ORM functionalities.
 version: 0.1.0
+repository: https://github.com/altec-sistemas/forge
 resolution: workspace
 # repository: https://github.com/my_org/my_repo
 
