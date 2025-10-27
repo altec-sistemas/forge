@@ -21,3 +21,5 @@ export 'src/event_bus/annotations.dart';
 export 'src/base_kernel.dart';
 export 'src/core_bundle.dart';
 export 'src/validator/constraint_extractor.dart';
+export 'src/logger.dart';
+export 'src/injector/proxy_system.dart';

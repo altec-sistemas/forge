@@ -421,6 +421,82 @@ abstract class SettersCapability implements ClassCapability {
   const SettersCapability();
 }
 
+/// Capability that enables proxy generation for runtime interception.
+///
+/// **Behavior:**
+/// When applied at class level, generates:
+/// - Full metadata for methods, getters, and setters (required for proxy)
+/// - A proxy class (_ClassNameProxy) that extends AbstractProxy
+/// - A createProxy function in the class metadata
+///
+/// The generated proxy allows runtime interception of method calls, getter access,
+/// and setter calls through a ProxyHandler.
+///
+/// **Example:**
+/// ```dart
+/// @ProxyCapability()
+/// class User {
+///   String name;
+///   int age;
+///
+///   User(this.name, this.age);
+///
+///   String greet() => 'Hello, I am $name';
+/// }
+/// ```
+///
+/// **Generated code:**
+/// ```dart
+/// // Proxy class
+/// class _UserProxy extends AbstractProxy implements User {
+///   _UserProxy._internal(Object target, ProxyHandler handler, ClassMetadata metadata)
+///     : super(target, handler, metadata);
+/// }
+///
+/// // In metadata:
+/// metaBuilder.registerClass<User>(
+///   meta.clazz(
+///     meta.type<User>(),
+///     [ProxyCapability()],
+///     null, // constructors
+///     [ /* all methods */ ],
+///     [ /* all getters */ ],
+///     [ /* all setters */ ],
+///     (target, handler, metadata) => _UserProxy._internal(target, handler, metadata),
+///   ),
+/// );
+/// ```
+///
+/// **Usage:**
+/// ```dart
+/// final registry = await setupRegistry();
+/// final userMetadata = registry.getClassMetadata<User>();
+///
+/// final realUser = User('Alice', 25);
+///
+/// final handler = ProxyHandler(
+///   onMethodCall: (name, pos, named) {
+///     print('Method called: $name');
+///     return null; // Execute real method
+///   },
+///   onGetterAccess: (name) {
+///     print('Getter accessed: $name');
+///     return null; // Get real value
+///   },
+///   onSetterAccess: (name, value) {
+///     print('Setter: $name = $value');
+///   },
+/// );
+///
+/// final proxy = userMetadata.createProxy!(realUser, handler, userMetadata) as User;
+/// proxy.name; // Logs: Getter accessed: name
+/// proxy.greet(); // Logs: Method called: greet
+/// ```
+abstract class ProxyCapability
+    implements MethodsCapability, GettersCapability, SettersCapability {
+  const ProxyCapability();
+}
+
 /// Capability that enables metadata about parameters.
 ///
 /// This capability applies to both methods and constructors. It only generates
@@ -1170,7 +1246,7 @@ class Provide {
     this.name,
     this.env,
     this.priority,
-    this.shared = true,
+    this.shared = false,
   });
 }
 

@@ -4,13 +4,12 @@ import 'package:path/path.dart' as path;
 
 /// Collects and manages imports required for generated code.
 class ImportCollector {
-  final Map<LibraryElement2, String> _libraryToPrefix = {};
-  final Map<LibraryElement2, String> _libraryToOriginalImport = {};
+  final Map<String, String> _importUriToPrefix = {};
   final Map<String, LibraryElement2> _importUriToLibrary = {};
   final Set<String> _usedPrefixes = {};
 
-  // Maps element libraries to the import that was actually used in source
-  final Map<LibraryElement2, String> _elementLibraryToSourceImport = {};
+  // Maps libraries to their source import URI
+  final Map<LibraryElement2, String> _libraryToSourceImport = {};
 
   int _nextPrefixIndex = 0;
 
@@ -22,6 +21,7 @@ class ImportCollector {
   /// Registers a library and its original import URI from the source file
   void registerLibraryWithImport(LibraryElement2 library, String importUri) {
     if (library.isDartCore) return;
+    if (importUri.startsWith('../') || importUri.startsWith('./')) return;
 
     // Skip the bundle file itself
     if (importUri.endsWith('.bundle.dart')) return;
@@ -29,47 +29,38 @@ class ImportCollector {
     // Normalize the import URI
     final normalizedUri = _normalizeImportUri(importUri);
 
-    if (!_libraryToOriginalImport.containsKey(library)) {
-      _libraryToOriginalImport[library] = normalizedUri;
-      _importUriToLibrary[normalizedUri] = library;
-
-      // Also assign a prefix if not already assigned
-      if (!_libraryToPrefix.containsKey(library)) {
-        String prefix = 'prefix$_nextPrefixIndex';
-        _nextPrefixIndex++;
-        _libraryToPrefix[library] = prefix;
-      }
+    // Register this library with its source import
+    if (!_libraryToSourceImport.containsKey(library)) {
+      _libraryToSourceImport[library] = normalizedUri;
     }
 
-    // Map any exported libraries from this import to use the same import URI
+    // Register the import URI and assign a prefix if needed
+    if (!_importUriToPrefix.containsKey(normalizedUri)) {
+      String prefix = 'prefix$_nextPrefixIndex';
+      _nextPrefixIndex++;
+      _importUriToPrefix[normalizedUri] = prefix;
+      _importUriToLibrary[normalizedUri] = library;
+    }
+
+    // Map exported libraries to use the same import URI
     _mapExportedLibraries(library, normalizedUri);
   }
 
   /// Maps all libraries exported by an import to use that import URI
   void _mapExportedLibraries(LibraryElement2 library, String importUri) {
-    // Map the library itself
-    if (!_elementLibraryToSourceImport.containsKey(library)) {
-      _elementLibraryToSourceImport[library] = importUri;
-    }
-
-    // Map all exported libraries - use firstFragment.libraryExports
     final fragment = library.firstFragment;
+
     for (final export in fragment.libraryExports2) {
       final exportedLibrary = export.exportedLibrary2;
-      if (exportedLibrary != null) {
+      if (exportedLibrary != null && !exportedLibrary.isDartCore) {
+        // Map this exported library to use the same import URI
         // Only map if not already mapped (first import wins)
-        if (!_elementLibraryToSourceImport.containsKey(exportedLibrary)) {
-          _elementLibraryToSourceImport[exportedLibrary] = importUri;
+        if (!_libraryToSourceImport.containsKey(exportedLibrary)) {
+          _libraryToSourceImport[exportedLibrary] = importUri;
 
-          // Also ensure we have a prefix for it
-          if (!_libraryToPrefix.containsKey(exportedLibrary)) {
-            final prefix = _libraryToPrefix[library]!;
-            _libraryToPrefix[exportedLibrary] = prefix;
-          }
+          // Recursively handle transitive exports
+          _mapExportedLibraries(exportedLibrary, importUri);
         }
-
-        // Recursively handle transitive exports
-        _mapExportedLibraries(exportedLibrary, importUri);
       }
     }
   }
@@ -92,11 +83,19 @@ class ImportCollector {
 
         // If it's the same package as the one we're generating for
         if (packageName == from.package) {
-          // Convert to relative import
-          final fromDir = path.url.dirname(from.path);
-          final targetPath = filePath;
-          final relativePath = path.url.relative(targetPath, from: fromDir);
-          return relativePath;
+          // CRITICAL: Check if file is in example/ or other excluded subdirectories
+          // These should NEVER be imported by root bundles
+          if (_isFileInExcludedSubdirectory(filePath) &&
+              !_isFromInSameSubdirectory(filePath)) {
+            throw Exception(
+              'Cannot import file from excluded subdirectory: $filePath\n'
+              'Bundle location: ${from.path}\n'
+              'This usually means the bundle is incorrectly scanning files outside its scope.',
+            );
+          }
+
+          // Convert to relative import, but ensure it's proper
+          return _convertToProperRelativeImport(filePath);
         } else {
           // Convert to package import
           final cleanPath = filePath.startsWith('lib/')
@@ -107,105 +106,183 @@ class ImportCollector {
       }
     }
 
-    // Check if it's an internal package path (contains /src/)
-    if (uri.startsWith('package:') && uri.contains('/src/')) {
-      final parts = uri.split('/');
-      if (parts.length >= 2) {
-        final packagePart = parts[0];
-        final packageName = packagePart.substring(8);
-        return 'package:$packageName/$packageName.dart';
+    // Don't try to "fix" package imports with /src/
+    // Keep them as-is, they might be intentionally importing internal APIs
+    return uri;
+  }
+
+  /// Check if a file path is in an excluded subdirectory
+  bool _isFileInExcludedSubdirectory(String filePath) {
+    final excludedDirs = [
+      'example/',
+      'test/',
+      'integration_test/',
+      'tool/',
+      'benchmark/',
+    ];
+    for (final dir in excludedDirs) {
+      if (filePath.startsWith(dir)) {
+        return true;
       }
     }
+    return false;
+  }
 
-    return uri;
+  /// Check if the 'from' file is in the same subdirectory as the target file
+  bool _isFromInSameSubdirectory(String targetFilePath) {
+    // Extract subdirectory from both paths
+    final fromSubdir = _extractSubdirectory(from.path);
+    final targetSubdir = _extractSubdirectory(targetFilePath);
+
+    return fromSubdir == targetSubdir;
+  }
+
+  /// Extract the subdirectory prefix (example/, test/, etc.) or empty string for root
+  String _extractSubdirectory(String filePath) {
+    final excludedDirs = [
+      'example/',
+      'test/',
+      'integration_test/',
+      'tool/',
+      'benchmark/',
+    ];
+    for (final dir in excludedDirs) {
+      if (filePath.startsWith(dir)) {
+        return dir;
+      }
+    }
+    return ''; // Root
+  }
+
+  /// Convert a file path to a proper relative import from the bundle file
+  /// Examples:
+  /// - from: lib/config/app_bundle.dart, target: lib/entity/user.dart -> ../entity/user.dart
+  /// - from: lib/config/app_bundle.dart, target: lib/config/settings.dart -> settings.dart
+  /// - from: example/lib/main.dart, target: example/lib/test.dart -> test.dart
+  String _convertToProperRelativeImport(String targetPath) {
+    // Extract subdirectory from both paths (example/, test/, or '' for root)
+    final fromSubdir = _extractSubdirectory(from.path);
+    final targetSubdir = _extractSubdirectory(targetPath);
+
+    // Ensure both are in the same subdirectory
+    if (fromSubdir != targetSubdir) {
+      throw Exception(
+        'Cannot create relative import across different subdirectories:\n'
+        'From: ${from.path} (subdir: $fromSubdir)\n'
+        'Target: $targetPath (subdir: $targetSubdir)',
+      );
+    }
+
+    // Remove subdirectory prefix if present
+    String fromPathAdjusted = from.path;
+    String targetPathAdjusted = targetPath;
+
+    if (fromSubdir.isNotEmpty) {
+      fromPathAdjusted = from.path.substring(fromSubdir.length);
+      targetPathAdjusted = targetPath.substring(targetSubdir.length);
+    }
+
+    // Check if target is in lib/
+    final targetInLib = targetPathAdjusted.startsWith('lib/');
+    final fromInLib = fromPathAdjusted.startsWith('lib/');
+
+    // Case 1: Both in lib/ - use relative imports
+    if (targetInLib && fromInLib) {
+      // Remove 'lib/' prefix from both
+      final fromPathWithoutLib = fromPathAdjusted.substring(4);
+      final targetPathWithoutLib = targetPathAdjusted.substring(4);
+
+      // Get the directory of the from file (without filename)
+      final fromDir = path.url.dirname(fromPathWithoutLib);
+
+      // Calculate relative path
+      final relativePath = path.url.relative(
+        targetPathWithoutLib,
+        from: fromDir,
+      );
+
+      // ✅ CORREÇÃO: Sempre retornar o caminho relativo calculado
+      return relativePath;
+    }
+
+    // Case 2: Target outside lib/, from inside lib/ - use ../ to go up
+    if (!targetInLib && fromInLib) {
+      final fromDir = path.url.dirname(fromPathAdjusted);
+      final relativePath = path.url.relative(
+        targetPathAdjusted,
+        from: fromDir,
+      );
+
+      return relativePath;
+    }
+
+    // Case 3: Both outside lib/ - simple relative
+    if (!targetInLib && !fromInLib) {
+      final fromDir = path.url.dirname(fromPathAdjusted);
+      return path.url.relative(targetPathAdjusted, from: fromDir);
+    }
+
+    // Case 4: From outside lib/, target inside lib/ - unusual, but handle it
+    final fromDir = path.url.dirname(fromPathAdjusted);
+    return path.url.relative(targetPathAdjusted, from: fromDir);
   }
 
   /// Gets the prefix for a library (with trailing dot).
   String getPrefix(LibraryElement2 library) {
     if (library.isDartCore) return '';
 
-    // First, check if we have a mapped source import for this library
-    final sourceImport = _elementLibraryToSourceImport[library];
-    if (sourceImport != null) {
-      // Find the library that corresponds to this import
-      final importLibrary = _importUriToLibrary[sourceImport];
-      if (importLibrary != null &&
-          _libraryToPrefix.containsKey(importLibrary)) {
-        final prefix = _libraryToPrefix[importLibrary]!;
-        _usedPrefixes.add(prefix);
-        return '$prefix.';
-      }
+    // Find the source import for this library
+    final sourceImport = _libraryToSourceImport[library];
+    if (sourceImport == null) {
+      // Library not registered, this shouldn't happen in normal usage
+      // but handle it gracefully
+      final uri = _getImportUri(library).toString();
+      registerLibraryWithImport(library, uri);
+      return getPrefix(library);
     }
 
-    // Fallback to direct library lookup
-    String? prefix = _libraryToPrefix[library];
+    // Get the prefix for this import
+    final prefix = _importUriToPrefix[sourceImport];
     if (prefix == null) {
-      prefix = 'prefix$_nextPrefixIndex';
-      _nextPrefixIndex++;
-      _libraryToPrefix[library] = prefix;
+      // Import not registered, shouldn't happen
+      return '';
     }
 
     _usedPrefixes.add(prefix);
-    return prefix.isEmpty ? '' : '$prefix.';
+    return '$prefix.';
   }
-
-  /// Returns all libraries that need to be imported.
-  Iterable<LibraryElement2> get libraries => _libraryToPrefix.keys;
 
   /// Returns all collected import statements (sorted deterministically).
   /// Only includes imports that are actually used in the generated code.
   List<String> getImports() {
     final importsList = <String>[];
-    final processedUris = <String>{};
 
-    for (final entry in _libraryToPrefix.entries) {
-      final library = entry.key;
-      final prefix = entry.value;
+    // Sort import URIs for deterministic output
+    final sortedImports = _importUriToPrefix.keys.toList()..sort();
+
+    for (final uri in sortedImports) {
+      final prefix = _importUriToPrefix[uri]!;
 
       // Skip unused imports
       if (!_usedPrefixes.contains(prefix)) continue;
 
-      // Try to use original import first
-      String uri;
-      if (_libraryToOriginalImport.containsKey(library)) {
-        uri = _libraryToOriginalImport[library]!;
-      } else {
-        // Check if we have a source import mapping
-        final sourceImport = _elementLibraryToSourceImport[library];
-        if (sourceImport != null) {
-          uri = sourceImport;
-        } else {
-          uri = _getImportUri(library).toString();
-        }
-      }
-
       // Skip bundle files
       if (uri.endsWith('.bundle.dart')) continue;
 
-      // Skip if we already added this URI
-      if (processedUris.contains(uri)) continue;
-      processedUris.add(uri);
-
-      if (prefix.isEmpty) {
-        importsList.add("import '$uri';");
-      } else {
-        importsList.add("import '$uri' as $prefix;");
-      }
+      importsList.add("import '$uri' as $prefix;");
     }
 
-    importsList.sort();
     return importsList;
   }
 
   /// Gets a URI which would be appropriate for importing [library].
   Uri _getImportUri(LibraryElement2 library) {
-    // Use firstFragment.source instead of library.source
     final fragment = library.firstFragment;
     final source = fragment.source;
     Uri uri = source.uri;
 
     // Check if we have a source import mapping first
-    final sourceImport = _elementLibraryToSourceImport[library];
+    final sourceImport = _libraryToSourceImport[library];
     if (sourceImport != null) {
       return Uri.parse(sourceImport);
     }
@@ -219,15 +296,6 @@ class ImportCollector {
     if (uri.scheme == 'asset') {
       final normalized = _normalizeImportUri(uri.toString());
       return Uri.parse(normalized);
-    }
-
-    // For package: libraries with /src/, try to use main package import
-    if (uri.scheme == 'package' && uri.path.contains('/src/')) {
-      final pathSegments = uri.pathSegments;
-      if (pathSegments.isNotEmpty) {
-        final packageName = pathSegments[0];
-        return Uri.parse('package:$packageName/$packageName.dart');
-      }
     }
 
     // For package: libraries, use as-is
@@ -300,17 +368,21 @@ class ImportCollector {
       return relative;
     }
 
-    // Lib asset - use package: import
+    // Lib asset - prefer relative imports for same package
+    if (assetId.package == from.package && from.path.startsWith('lib/')) {
+      return _convertToProperRelativeImport(assetId.path);
+    }
+
+    // Different package - use package: import
     return 'package:${assetId.package}/${assetId.path.substring(4)}';
   }
 
   /// Clears all collected imports.
   void clear() {
-    _libraryToPrefix.clear();
-    _libraryToOriginalImport.clear();
+    _importUriToPrefix.clear();
     _importUriToLibrary.clear();
     _usedPrefixes.clear();
-    _elementLibraryToSourceImport.clear();
+    _libraryToSourceImport.clear();
     _nextPrefixIndex = 0;
   }
 }

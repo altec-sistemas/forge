@@ -124,6 +124,7 @@ class MetadataTransformer implements Transformer, SerializerAware {
   @override
   bool supportsNormalization<T>(T object, SerializerContext context) {
     if (object == null) return false;
+    if (object is AbstractProxy) object = object.target as T;
 
     if (_metadataRegistry.hasClassMetadata<T>(object.runtimeType)) {
       return true;
@@ -162,6 +163,7 @@ class MetadataTransformer implements Transformer, SerializerAware {
   @override
   dynamic normalize<T>(T object, SerializerContext context) {
     if (object == null) return null;
+    if (object is AbstractProxy) object = object.target as T;
 
     if (_metadataRegistry.hasEnumMetadata<T>(object.runtimeType)) {
       final metadata = _metadataRegistry.getEnumMetadata<T>(object.runtimeType);
@@ -479,10 +481,6 @@ class MetadataTransformer implements Transformer, SerializerAware {
   ) {
     if (value == null) return null;
 
-    if (_primitiveTypes.contains(targetType.type)) {
-      return value;
-    }
-
     if (targetType.type == List && targetType.typeArguments.isNotEmpty) {
       return _denormalizeList(value, targetType, context);
     }
@@ -649,11 +647,13 @@ class MetadataTransformer implements Transformer, SerializerAware {
         }
 
         value = setterMeta.typeMetadata.captureGeneric(
-          <S>() => _denormalizeValue<S>(
-            value,
-            setterMeta.typeMetadata as TypeMetadata<S>,
-            effectiveContext,
-          ),
+          <S>() {
+            return _denormalizeValue<S>(
+              value,
+              setterMeta.typeMetadata as TypeMetadata<S>,
+              effectiveContext,
+            );
+          },
         );
       }
 

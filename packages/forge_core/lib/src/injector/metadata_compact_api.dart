@@ -1,4 +1,5 @@
 import 'metadata_registry.dart';
+import 'proxy_system.dart';
 
 /// Creates a TypeMetadata instance
 TypeMetadata<T> type<T>([
@@ -14,6 +15,12 @@ ClassMetadata clazz(
   List<MethodMetadata>? methods,
   List<GetterMetadata>? getters,
   List<SetterMetadata>? setters,
+  AbstractProxy Function(
+    Object target,
+    ProxyHandler handler,
+    ClassMetadata metadata,
+  )?
+  createProxy,
 ]) {
   return ClassMetadata(
     typeMetadata: typeMetadata,
@@ -22,6 +29,7 @@ ClassMetadata clazz(
     methods: methods,
     getters: getters,
     setters: setters,
+    createProxy: createProxy,
   );
 }
 

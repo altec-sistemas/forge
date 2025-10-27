@@ -1,4 +1,5 @@
 import '../../forge_core.dart';
+import 'proxy_system.dart';
 
 /// Defines the interface for building and registering metadata
 abstract class MetadataRegistryBuilder {
@@ -99,6 +100,15 @@ class ClassMetadata extends ElementMetadata {
   /// Constructors metadata (if available).
   final List<ConstructorMetadata>? constructors;
 
+  /// Factory function to create a proxy instance for this class.
+  /// Returns an AbstractProxy that wraps the target object with the given handler.
+  final AbstractProxy Function(
+    Object target,
+    ProxyHandler handler,
+    ClassMetadata metadata,
+  )?
+  createProxy;
+
   ClassMetadata({
     required TypeMetadata typeMetadata,
     List<dynamic> annotations = const [],
@@ -106,6 +116,7 @@ class ClassMetadata extends ElementMetadata {
     this.getters,
     this.setters,
     this.constructors,
+    this.createProxy,
   }) : super(typeMetadata, annotations) {
     // Link back-references
     if (methods != null) {

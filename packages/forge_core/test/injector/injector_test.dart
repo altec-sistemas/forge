@@ -655,11 +655,11 @@ void main() async {
       () async {
         final builder = InjectorBuilder();
 
-        builder.registerInstance<Logger>(ConsoleLogger(), name: 'console');
-        builder.registerInstance<Logger>(FileLogger(), name: 'file');
+        builder.registerInstance<SomeLogger>(ConsoleLogger(), name: 'console');
+        builder.registerInstance<SomeLogger>(FileLogger(), name: 'file');
 
         final container = await builder.build();
-        final loggers = container.all<Logger>();
+        final loggers = container.all<SomeLogger>();
 
         expect(loggers, hasLength(2));
         expect(loggers.whereType<ConsoleLogger>(), hasLength(1));
@@ -689,8 +689,8 @@ void main() async {
     test('all() should work with specific implementation type', () async {
       final builder = InjectorBuilder();
 
-      builder.registerInstance<Logger>(ConsoleLogger(), name: 'console');
-      builder.registerInstance<Logger>(FileLogger(), name: 'file');
+      builder.registerInstance<SomeLogger>(ConsoleLogger(), name: 'console');
+      builder.registerInstance<SomeLogger>(FileLogger(), name: 'file');
 
       final container = await builder.build();
       final consoleLoggers = container.all<ConsoleLogger>();
@@ -702,13 +702,13 @@ void main() async {
     test('all() should not return unrelated types', () async {
       final builder = InjectorBuilder();
 
-      builder.registerInstance<Logger>(ConsoleLogger(), name: 'logger');
+      builder.registerInstance<SomeLogger>(ConsoleLogger(), name: 'logger');
       builder.registerInstance<Animal>(Dog(), name: 'animal');
       builder.registerInstance<ServiceA>(ServiceA(), name: 'service');
 
       final container = await builder.build();
 
-      expect(container.all<Logger>(), hasLength(1));
+      expect(container.all<SomeLogger>(), hasLength(1));
       expect(container.all<Animal>(), hasLength(1));
       expect(container.all<ServiceA>(), hasLength(1));
     });
@@ -783,13 +783,16 @@ void main() async {
     test('matches should work correctly with factories', () async {
       final builder = InjectorBuilder();
 
-      builder.registerFactory<Logger>((c) => ConsoleLogger(), name: 'console');
-      builder.registerFactory<Logger>((c) => FileLogger(), name: 'file');
+      builder.registerFactory<SomeLogger>(
+        (c) => ConsoleLogger(),
+        name: 'console',
+      );
+      builder.registerFactory<SomeLogger>((c) => FileLogger(), name: 'file');
 
       final container = await builder.build();
 
-      final all1 = container.all<Logger>();
-      final all2 = container.all<Logger>();
+      final all1 = container.all<SomeLogger>();
+      final all2 = container.all<SomeLogger>();
 
       expect(all1, hasLength(2));
       expect(all2, hasLength(2));
@@ -825,12 +828,12 @@ void main() async {
           ConsoleLogger(),
           name: 'second',
         );
-        builder.registerInstance<Logger>(ConsoleLogger(), name: 'third');
+        builder.registerInstance<SomeLogger>(ConsoleLogger(), name: 'third');
 
         final container = await builder.build();
 
         final consoleLoggers = container.all<ConsoleLogger>();
-        final loggers = container.all<Logger>();
+        final loggers = container.all<SomeLogger>();
 
         expect(consoleLoggers, hasLength(3));
         expect(loggers, hasLength(3));
@@ -840,15 +843,15 @@ void main() async {
     test('all() with mixed registration types should work correctly', () async {
       final builder = InjectorBuilder();
 
-      builder.registerInstance<Logger>(ConsoleLogger(), name: 'instance');
-      builder.registerFactory<Logger>((c) => FileLogger(), name: 'factory');
-      builder.registerSingleton<Logger>(
+      builder.registerInstance<SomeLogger>(ConsoleLogger(), name: 'instance');
+      builder.registerFactory<SomeLogger>((c) => FileLogger(), name: 'factory');
+      builder.registerSingleton<SomeLogger>(
         (c) => ConsoleLogger(),
         name: 'singleton',
       );
 
       final container = await builder.build();
-      final loggers = container.all<Logger>();
+      final loggers = container.all<SomeLogger>();
 
       expect(loggers, hasLength(3));
     });

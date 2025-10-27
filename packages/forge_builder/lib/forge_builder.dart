@@ -24,28 +24,22 @@ class ForgeBundleBuilder implements Builder {
       final autoBundleChecker = TypeChecker.typeNamed(AutoBundle);
 
       // Use specific getters instead of topLevelElements
-      for (final element in [
-        ...library.classes,
-        ...library.enums,
-        ...library.extensions,
-      ]) {
-        if (element is ClassElement2) {
-          final annotation = autoBundleChecker.firstAnnotationOf(element);
-          if (annotation != null) {
-            // Generate bundle implementation
-            final generator = BundleGenerator(
-              buildStep: buildStep,
-              resolver: resolver,
-              bundleClass: element,
-              annotation: annotation,
-            );
+      for (final element in library.classes) {
+        final annotation = autoBundleChecker.firstAnnotationOf(element);
+        if (annotation != null) {
+          // Generate bundle implementation
+          final generator = BundleGenerator(
+            buildStep: buildStep,
+            resolver: resolver,
+            bundleClass: element,
+            annotation: annotation,
+          );
 
-            final generatedCode = await generator.generate();
+          final generatedCode = await generator.generate();
 
-            if (generatedCode.isNotEmpty) {
-              final outputId = inputId.changeExtension('.bundle.dart');
-              await buildStep.writeAsString(outputId, generatedCode);
-            }
+          if (generatedCode.isNotEmpty) {
+            final outputId = inputId.changeExtension('.bundle.dart');
+            await buildStep.writeAsString(outputId, generatedCode);
           }
         }
       }

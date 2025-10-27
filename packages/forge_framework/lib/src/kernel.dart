@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:forge_core/forge_core.dart';
 
@@ -19,6 +20,7 @@ abstract class Kernel extends BaseKernel {
     ..addBundle(CoreBundle())
     ..addBundle(HttpBundle());
 
+  /// Adds a runner to be executed when the kernel runs.
   void addRunner(Runner runner);
 
   /// Builds the container, boots all bundles, and executes all runners.
@@ -48,6 +50,7 @@ abstract class Runner {
 
 class _KernelImpl with BaseKernelMixin implements Kernel {
   final List<Runner> _runners = [];
+  bool _running = false;
 
   @override
   final String env;
@@ -70,6 +73,12 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
 
   @override
   Future<void> run([List<String>? args]) async {
+    if (_running) {
+      throw KernelException('Kernel is already running');
+    }
+
+    _running = true;
+
     await build();
 
     if (isBooted) {
@@ -83,26 +92,30 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
       () async {
         await boot();
         await eventDispatcher.dispatch(KernelRunEvent(this, args));
-        await Future.wait(_runners.map((r) => r.run(args)));
+        await Future.wait(
+          _runners.map((runner) async {
+            await runner.run(args);
+          }),
+        );
         completer.complete();
       },
       (error, stackTrace) async {
         await eventDispatcher.dispatch(
           KernelErrorEvent(this, error, stackTrace),
         );
-
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
+        logger.error(
+          'Unhandled error during kernel run: $error',
+          error: error,
+          stackTrace: stackTrace,
+        );
       },
     );
-
-    return completer.future;
   }
 
   @override
   void registerCoreServices(InjectorBuilder builder) {
     builder.registerInstance<Kernel>(this);
+    builder.registerInstance<BaseKernel>(this);
   }
 }
 

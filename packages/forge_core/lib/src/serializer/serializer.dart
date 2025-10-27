@@ -217,7 +217,7 @@ class _SerializerImpl implements Serializer {
     }
 
     throw SerializerException(
-      'No transformer found for normalizing object of type: $T',
+      'No transformer found for normalizing object of type: $T value ($object)',
     );
   }
 
@@ -473,7 +473,8 @@ class MapTransformer implements Transformer, SerializerAware {
 
   @override
   bool supportsDenormalization<T>(dynamic data, SerializerContext context) {
-    return isSameType<T, Map>() || isSameType<T, Map?>() || data is Map;
+    return (isSameType<T, Map>() || isSameType<T, Map?>() || T == dynamic) &&
+        data is Map;
   }
 
   @override
@@ -516,17 +517,17 @@ class MapTransformer implements Transformer, SerializerAware {
     }
 
     if (data.isEmpty) {
-      return <Object, Object>{} as T;
+      return <dynamic, dynamic>{} as T;
     }
 
-    final result = <Object?, Object?>{};
+    final result = <dynamic, dynamic>{};
 
     for (final entry in data.entries) {
       final key = entry.key;
       final value = entry.value;
 
-      result[_serializer.denormalize<Object>(key, context)] = _serializer
-          .denormalize<Object>(value, context);
+      result[_serializer.denormalize<dynamic>(key, context)] = _serializer
+          .denormalize<dynamic>(value, context);
     }
 
     return result as T;

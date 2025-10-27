@@ -60,16 +60,16 @@ class PriorityAnnotation {
   const PriorityAnnotation(this.priority);
 }
 
-abstract class Logger {
+abstract class SomeLogger {
   void log(String message);
 }
 
-class ConsoleLogger implements Logger {
+class ConsoleLogger implements SomeLogger {
   @override
   void log(String message) => print(message);
 }
 
-class FileLogger implements Logger {
+class FileLogger implements SomeLogger {
   @override
   void log(String message) {}
 }

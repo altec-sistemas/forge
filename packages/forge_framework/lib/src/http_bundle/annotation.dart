@@ -14,15 +14,15 @@ class Route {
   final List<String> method;
   final String path;
 
-  const Route(this.path, [this.method = const []]);
+  const Route([this.path = '', this.method = const []]);
 
-  const Route.get(this.path) : method = const ['GET'];
-  const Route.post(this.path) : method = const ['POST'];
-  const Route.put(this.path) : method = const ['PUT'];
-  const Route.delete(this.path) : method = const ['DELETE'];
-  const Route.patch(this.path) : method = const ['PATCH'];
-  const Route.head(this.path) : method = const ['HEAD'];
-  const Route.options(this.path) : method = const ['OPTIONS'];
+  const Route.get([this.path = '']) : method = const ['GET'];
+  const Route.post([this.path = '']) : method = const ['POST'];
+  const Route.put([this.path = '']) : method = const ['PUT'];
+  const Route.delete([this.path = '']) : method = const ['DELETE'];
+  const Route.patch([this.path = '']) : method = const ['PATCH'];
+  const Route.head([this.path = '']) : method = const ['HEAD'];
+  const Route.options([this.path = '']) : method = const ['OPTIONS'];
 }
 
 @Target({TargetKind.parameter})

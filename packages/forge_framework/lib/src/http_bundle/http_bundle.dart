@@ -66,6 +66,8 @@ class HttpBundle extends Bundle {
       return HttpKernel(
         router: i<Router>(),
         eventBus: i<EventBus>(),
+        logger: i<Logger>(),
+        debug: i<String>('env') == 'dev',
       );
     });
 
@@ -202,6 +204,20 @@ class HttpBundle extends Bundle {
 
     final cleanPath = path.startsWith('/') ? path : '/$path';
 
-    return '$cleanPrefix$cleanPath';
+    final withPrefixPath = '$cleanPrefix$cleanPath';
+
+    if (withPrefixPath.isEmpty) {
+      return '/';
+    }
+
+    if (!withPrefixPath.startsWith('/')) {
+      return '/$withPrefixPath';
+    }
+
+    if (withPrefixPath.endsWith('/') && withPrefixPath.length > 1) {
+      return withPrefixPath.substring(0, withPrefixPath.length - 1);
+    }
+
+    return withPrefixPath;
   }
 }

@@ -43,6 +43,9 @@ class CodeEmitter {
 
     buffer.writeln("// GENERATED CODE - DO NOT MODIFY BY HAND");
     buffer.writeln("// dart format width=10000");
+    buffer.writeln(
+      "// ignore_for_file: prefer_relative_imports, depend_on_referenced_packages, camel_case_types",
+    );
     buffer.writeln();
     buffer.writeln("import 'package:forge_core/forge_core.dart';");
     buffer.writeln(
@@ -111,6 +114,12 @@ class CodeEmitter {
 
     _buffer.writeln('  }');
     _buffer.writeln('}');
+
+    for (final classData in data.classes) {
+      if (classData.hasProxyCapability) {
+        _generateProxyClass(classData);
+      }
+    }
   }
 
   void _generateModuleRegistrations(List<ModuleData> modules) {
@@ -142,7 +151,7 @@ class CodeEmitter {
   ) {
     final method = provider.method;
     final returnType = switch (method) {
-      MethodElement m => m.returnType,
+      MethodElement2 m => m.returnType,
       GetterElement g => g.returnType,
       _ => throw UnsupportedError(
         'Unsupported provider method type: ${method.runtimeType}',
@@ -239,7 +248,7 @@ class CodeEmitter {
         final method = bootMethod.method;
 
         final returnType = switch (method) {
-          MethodElement m => m.returnType,
+          MethodElement2 m => m.returnType,
           GetterElement g => g.returnType,
           _ => throw UnsupportedError(
             'Unsupported boot method type: ${method.runtimeType}',
@@ -255,7 +264,7 @@ class CodeEmitter {
         }
         _buffer.write('i<$moduleType>().${method.name3}');
 
-        if (method is MethodElement) {
+        if (method is MethodElement2) {
           _buffer.write('(');
           final params = method.formalParameters;
           for (var i = 0; i < params.length; i++) {
@@ -456,8 +465,33 @@ class CodeEmitter {
       _buffer.writeln('        null, // setters');
     }
 
+    // CreateProxy function (if ProxyCapability is enabled)
+    if (classData.hasProxyCapability) {
+      _buffer.writeln(
+        '        (target, handler, metadata) => _${typeStr.replaceAll('.', '')}Proxy._(target, handler, metadata),',
+      );
+    } else {
+      _buffer.writeln('        null, // createProxy');
+    }
+
     _buffer.writeln('      ),');
     _buffer.writeln('    );');
+    _buffer.writeln();
+  }
+
+  /// Generate a proxy class for the given class data
+  void _generateProxyClass(ClassData classData) {
+    final element = classData.element;
+    final typeStr = _getTypeName(element.thisType);
+    final className = typeStr.replaceAll('.', '');
+
+    _buffer.writeln(
+      'class _${className}Proxy extends AbstractProxy implements $typeStr {',
+    );
+    _buffer.writeln(
+      '  _${className}Proxy._(super.target, super.handler, super.metadata);',
+    );
+    _buffer.writeln('}');
     _buffer.writeln();
   }
 

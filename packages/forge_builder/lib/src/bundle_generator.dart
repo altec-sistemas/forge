@@ -5,6 +5,7 @@ import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:glob/glob.dart';
 import 'package:dart_style/dart_style.dart';
+import 'package:path/path.dart' as p;
 
 import 'annotation_code_generator.dart';
 import 'annotation_processor.dart';
@@ -78,8 +79,21 @@ class BundleGenerator {
     final scannedData = ScannedData();
     final processedFiles = <String>{};
 
+    // Get the directory where the @AutoBundle class is located
+    // Ex: se inputId = 'example/lib/main.dart', baseDir = 'example/'
+    final inputPath = buildStep.inputId.path;
+    final baseDir = _getPackageRoot(inputPath);
+
+    log.info('Processing @AutoBundle from: $inputPath');
+    log.info('Package root detected: $baseDir');
+
     for (final pattern in paths) {
-      final glob = Glob(pattern);
+      // Make pattern relative to the @AutoBundle file's package
+      final adjustedPattern = _adjustPattern(pattern, baseDir);
+
+      log.info('Original pattern: $pattern -> Adjusted: $adjustedPattern');
+
+      final glob = Glob(adjustedPattern);
 
       await for (final asset in buildStep.findAssets(glob)) {
         final assetPath = asset.path;
@@ -88,7 +102,7 @@ class BundleGenerator {
         if (processedFiles.contains(assetPath)) continue;
 
         // Skip if matches exclude patterns
-        if (_shouldExclude(assetPath, excludePaths)) continue;
+        if (_shouldExclude(assetPath, excludePaths, baseDir)) continue;
 
         // Skip generated files
         if (assetPath.contains('.g.dart') ||
@@ -120,12 +134,64 @@ class BundleGenerator {
       }
     }
 
+    log.info(
+      'Scanned ${processedFiles.length} files, found ${scannedData.classes.length} classes, ${scannedData.services.length} services',
+    );
+
     return scannedData;
   }
 
-  bool _shouldExclude(String assetPath, List<String> excludePatterns) {
+  /// Detects the package root based on the input file path
+  /// Ex: 'lib/main.dart' -> ''
+  ///     'example/lib/main.dart' -> 'example/'
+  ///     'test/lib/main.dart' -> 'test/'
+  String _getPackageRoot(String inputPath) {
+    // Normalize path separators
+    final normalized = p.normalize(inputPath);
+    final parts = p.split(normalized);
+
+    // Find 'lib' in the path
+    final libIndex = parts.indexOf('lib');
+
+    if (libIndex <= 0) {
+      // 'lib' is at root or not found
+      return '';
+    }
+
+    // Everything before 'lib' is the package root
+    // Ex: ['example', 'lib', 'main.dart'] -> 'example/'
+    return '${p.joinAll(parts.sublist(0, libIndex))}/';
+  }
+
+  /// Adjusts the pattern to be relative to the detected package root
+  String _adjustPattern(String pattern, String baseDir) {
+    if (baseDir.isEmpty) {
+      // Already at root
+      return pattern;
+    }
+
+    // If pattern starts with 'lib/', prepend the base directory
+    if (pattern.startsWith('lib/')) {
+      return '$baseDir$pattern';
+    }
+
+    // If it's an absolute pattern (rare), leave it as is
+    if (pattern.startsWith('/')) {
+      return pattern;
+    }
+
+    // Otherwise, prepend base directory
+    return '$baseDir$pattern';
+  }
+
+  bool _shouldExclude(
+    String assetPath,
+    List<String> excludePatterns,
+    String baseDir,
+  ) {
     for (final pattern in excludePatterns) {
-      final glob = Glob(pattern);
+      final adjustedPattern = _adjustPattern(pattern, baseDir);
+      final glob = Glob(adjustedPattern);
       if (glob.matches(assetPath)) {
         return true;
       }
@@ -171,6 +237,7 @@ class ClassData {
   final bool hasMetadata;
   final List<RequiredMethodData>? requiredMethods;
   final List<RequiredSetterData>? requiredSetters;
+  final bool hasProxyCapability;
 
   ClassData({
     required this.element,
@@ -181,6 +248,7 @@ class ClassData {
     this.hasMetadata = false,
     this.requiredMethods,
     this.requiredSetters,
+    this.hasProxyCapability = false,
   });
 }
 

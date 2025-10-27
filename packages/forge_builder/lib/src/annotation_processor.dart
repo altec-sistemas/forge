@@ -177,6 +177,7 @@ class AnnotationProcessor {
         getters: getters,
         setters: setters,
         hasMetadata: true,
+        hasProxyCapability: effectiveCapabilities.hasProxyCapability,
       ),
     );
   }
@@ -188,6 +189,7 @@ class AnnotationProcessor {
     bool hasGettersCapability = false;
     bool hasSettersCapability = false;
     bool hasParametersCapability = false;
+    bool hasProxyCapability = false;
 
     for (final annotation in annotations) {
       final type = annotation.type;
@@ -208,6 +210,13 @@ class AnnotationProcessor {
       if (_implementsCapability(type, 'ParametersCapability')) {
         hasParametersCapability = true;
       }
+      if (_implementsCapability(type, 'ProxyCapability')) {
+        hasProxyCapability = true;
+        // ProxyCapability requires methods, getters, and setters
+        hasMethodsCapability = true;
+        hasGettersCapability = true;
+        hasSettersCapability = true;
+      }
     }
 
     return Capabilities(
@@ -221,6 +230,7 @@ class AnnotationProcessor {
       hasGettersCapability: hasGettersCapability,
       hasSettersCapability: hasSettersCapability,
       hasParametersCapability: hasParametersCapability,
+      hasProxyCapability: hasProxyCapability,
     );
   }
 
@@ -330,6 +340,7 @@ class AnnotationProcessor {
       hasGettersCapability: hasGettersCapability,
       hasSettersCapability: hasSettersCapability,
       hasParametersCapability: hasParametersCapability,
+      hasProxyCapability: false, // ProxyCapability is only class-level
     );
   }
 
@@ -356,6 +367,7 @@ class AnnotationProcessor {
       hasParametersCapability:
           classLevel.hasParametersCapability ||
           memberLevel.hasParametersCapability,
+      hasProxyCapability: classLevel.hasProxyCapability,
     );
   }
 
@@ -674,6 +686,7 @@ class AnnotationProcessor {
           name == 'GettersCapability' ||
           name == 'SettersCapability' ||
           name == 'ParametersCapability' ||
+          name == 'ProxyCapability' ||
           name == 'EnumsCapability') {
         return true;
       }
@@ -801,6 +814,7 @@ class Capabilities {
   final bool hasGettersCapability;
   final bool hasSettersCapability;
   final bool hasParametersCapability;
+  final bool hasProxyCapability;
 
   Capabilities({
     required this.classLevelMethods,
@@ -813,6 +827,7 @@ class Capabilities {
     required this.hasGettersCapability,
     required this.hasSettersCapability,
     required this.hasParametersCapability,
+    this.hasProxyCapability = false,
   });
 
   /// Check if there are any capabilities at all
@@ -821,5 +836,6 @@ class Capabilities {
       hasConstructorsCapability ||
       hasGettersCapability ||
       hasSettersCapability ||
-      hasParametersCapability;
+      hasParametersCapability ||
+      hasProxyCapability;
 }

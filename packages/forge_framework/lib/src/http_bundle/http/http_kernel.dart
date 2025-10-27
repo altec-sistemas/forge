@@ -5,8 +5,15 @@ import '../../../forge_framework.dart';
 class HttpKernel {
   final EventBus eventBus;
   final Router router;
+  final Logger logger;
+  final bool debug;
 
-  HttpKernel({required this.eventBus, required this.router});
+  HttpKernel({
+    required this.eventBus,
+    required this.router,
+    required this.logger,
+    this.debug = false,
+  });
 
   Future<Response> handle(Request request) async {
     final context = RequestContext(request);
@@ -46,6 +53,14 @@ class HttpKernel {
           return;
         }
 
+        if (error is! HttpException && error is! ValidationException) {
+          logger.error(
+            'Exception caught in HttpKernel: $error',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+
         if (!completer.isCompleted) {
           _handleException(context, error, stackTrace, completer);
         }
@@ -74,7 +89,8 @@ class HttpKernel {
       response = exceptionEvent.response!;
     } else {
       response = JsonResponse({
-        'message': 'Internal Server Error',
+        'message': 'An internal server error occurred.',
+        if (debug) 'error': exception.toString(),
       }, statusCode: 500);
     }
 
