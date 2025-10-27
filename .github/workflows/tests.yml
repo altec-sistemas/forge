@@ -15,11 +15,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
         with:
-          flutter-version: '3.35.0'
-          channel: 'stable'
+          channel: stable
+          version: 3.35.0
+          cache: false
+          cache-sdk: true
 
       - name: Install dependencies
         working-directory: packages/forge_core
@@ -37,11 +39,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
         with:
-          flutter-version: '3.35.0'
-          channel: 'stable'
+          channel: stable
+          version: 3.35.0
+          cache: false
+          cache-sdk: true
 
       - name: Install dependencies
         working-directory: packages/forge_framework
@@ -59,11 +63,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
         with:
-          flutter-version: '3.35.0'
-          channel: 'stable'
+          channel: stable
+          version: 3.35.0
+          cache: false
+          cache-sdk: true
 
       - name: Install dependencies
         working-directory: packages/forge_orm
@@ -99,11 +105,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Flutter SDK
+        uses: flutter-actions/setup-flutter@v4
         with:
-          flutter-version: '3.35.0'
-          channel: 'stable'
+          channel: stable
+          version: 3.35.0
+          cache: false
+          cache-sdk: true
 
       - name: Wait for MySQL
         run: |
