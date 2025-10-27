@@ -15,18 +15,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: '3.9.2'
+          flutter-version: '3.27.1'
+          channel: 'stable'
 
       - name: Install dependencies
         working-directory: packages/forge_core
-        run: dart pub get
+        run: flutter pub get
 
       - name: Run tests
         working-directory: packages/forge_core
-        run: dart test
+        run: flutter test
 
   test-framework:
     name: Test forge_framework
@@ -36,18 +37,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: '3.9.2'
+          flutter-version: '3.27.1'
+          channel: 'stable'
 
       - name: Install dependencies
         working-directory: packages/forge_framework
-        run: dart pub get
+        run: flutter pub get
 
       - name: Run tests
         working-directory: packages/forge_framework
-        run: dart test
+        run: flutter test
 
   test-orm-sqlite:
     name: Test forge_orm (SQLite)
@@ -57,20 +59,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: '3.9.2'
+          flutter-version: '3.27.1'
+          channel: 'stable'
 
       - name: Install dependencies
         working-directory: packages/forge_orm
-        run: dart pub get
+        run: flutter pub get
 
       - name: Run tests with SQLite
         working-directory: packages/forge_orm
         env:
           FORGE_TEST_DB: sqlite
-        run: dart test
+        run: flutter test
 
   test-orm-mysql:
     name: Test forge_orm (MySQL)
@@ -96,10 +99,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: '3.9.2'
+          flutter-version: '3.27.1'
+          channel: 'stable'
 
       - name: Wait for MySQL
         run: |
@@ -110,7 +114,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/forge_orm
-        run: dart pub get
+        run: flutter pub get
 
       - name: Run tests with MySQL
         working-directory: packages/forge_orm
@@ -122,4 +126,4 @@ jobs:
           MYSQL_USER: test_user
           MYSQL_PASSWORD: test_password
           MYSQL_SECURE: false
-        run: dart test
+        run: flutter test
