@@ -10,6 +10,8 @@ dev_dependencies:
 
 workspace:
   - packages/forge_framework
+  - packages/forge_orm
+  - packages/forge_orm/example
   - packages/forge_builder
   - packages/forge_flutter
   - packages/forge_flutter/example
