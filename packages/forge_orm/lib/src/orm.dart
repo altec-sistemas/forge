@@ -1,5 +1,4 @@
 import 'package:forge_core/forge_core.dart';
-import 'annotations.dart';
 import 'metadata_schema_resolver.dart';
 import 'entity_manager.dart';
 import 'database.dart';

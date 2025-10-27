@@ -1,5 +1,4 @@
 import '../../forge_core.dart';
-import 'proxy_system.dart';
 
 /// Defines the interface for building and registering metadata
 abstract class MetadataRegistryBuilder {

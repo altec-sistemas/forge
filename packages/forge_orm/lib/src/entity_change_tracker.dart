@@ -1,5 +1,4 @@
 import 'package:forge_core/forge_core.dart';
-import '../forge_orm.dart';
 
 /// Tracks changes in an entity through proxy
 class EntityChangeTracker {

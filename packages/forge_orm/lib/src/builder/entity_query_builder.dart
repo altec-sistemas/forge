@@ -215,7 +215,7 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
   Future<T> fetchOneOrFail() async {
     final entity = await fetchOne();
     if (entity == null) {
-      throw EntityNotFoundException('Record ${T} not found.');
+      throw EntityNotFoundException('Record $T not found.');
     }
     return entity;
   }

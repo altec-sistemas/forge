@@ -4,7 +4,6 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../dialect/sql_dialect.dart';
 import '../dialect/sqlite_dialect.dart';
-import '../database_exception.dart';
 
 /// SQLite database implementation
 /// Provides connection management for SQLite databases (file-based or in-memory)
@@ -173,7 +172,7 @@ class SqliteConnection implements Connection {
       }
 
       return result;
-    } catch (e, stackTrace) {
+    } catch (e) {
       try {
         _database.execute(_dialect.getTransactionRollback());
       } catch (rollbackError, rollbackStackTrace) {

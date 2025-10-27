@@ -1,7 +1,6 @@
 import 'package:forge_core/forge_core.dart';
 import 'package:forge_orm/forge_orm.dart';
 import 'package:forge_orm/src/connection/mysql_connection.dart';
-import 'package:forge_orm/src/connection/sqllite_connection.dart';
 import 'test_entities.dart';
 import 'test_helper.bundle.dart';
 

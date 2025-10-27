@@ -3,7 +3,6 @@
 // ignore_for_file: prefer_relative_imports, depend_on_referenced_packages, camel_case_types
 
 import 'package:forge_core/forge_core.dart';
-import 'package:forge_core/metadata_compact_api.dart' as meta;
 
 import 'database.dart' as prefix7;
 import 'entity_manager.dart' as prefix6;

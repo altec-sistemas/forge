@@ -1,6 +1,5 @@
 import 'package:forge_core/forge_core.dart';
 
-import '../forge_orm.dart';
 import 'orm_bundle.bundle.dart';
 
 @AutoBundle(

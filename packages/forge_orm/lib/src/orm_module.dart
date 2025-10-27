@@ -2,7 +2,6 @@ import 'package:forge_core/forge_core.dart';
 import '../forge_orm.dart';
 import 'connection/mysql_connection.dart';
 import 'connection/sqllite_connection.dart';
-import 'database_config.dart';
 
 @Module()
 class OrmModule {

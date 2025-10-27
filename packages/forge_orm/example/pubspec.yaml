@@ -15,6 +15,7 @@ dependencies:
   forge_orm:
     path: ../
 
+  forge_core: any
 dev_dependencies:
   forge_builder: any
   lints: ^6.0.0

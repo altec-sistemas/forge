@@ -1,6 +1,3 @@
-import '../forge_orm.dart';
-import 'connection/mysql_connection.dart';
-import 'connection/sqllite_connection.dart';
 
 class DatabaseConfig {
   final ConnectionConfig connection;

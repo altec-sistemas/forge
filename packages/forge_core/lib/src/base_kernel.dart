@@ -1,6 +1,5 @@
 import 'dart:async';
 import '../forge_core.dart';
-import 'logger.dart';
 
 /// Base interface for all kernels (Application and Kernel).
 abstract class BaseKernel {
