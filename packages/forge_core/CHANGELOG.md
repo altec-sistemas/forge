@@ -1,3 +1,8 @@
+## 0.1.3
+
+- Added support for proxy classes in metadata_registry.
+- Improved log system.
+
 ## 0.1.2
 
 - Fixed serializer cache issue that caused problems with group filters.

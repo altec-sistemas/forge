@@ -1,6 +1,6 @@
 name: forge_builder
 description: Code generator for Forge framework annotations and dependency injection
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/altec-sistemas/forge
 resolution: workspace
 
