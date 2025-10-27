@@ -1,0 +1,125 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-core:
+    name: Test forge_core
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.9.2'
+
+      - name: Install dependencies
+        working-directory: packages/forge_core
+        run: dart pub get
+
+      - name: Run tests
+        working-directory: packages/forge_core
+        run: dart test
+
+  test-framework:
+    name: Test forge_framework
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.9.2'
+
+      - name: Install dependencies
+        working-directory: packages/forge_framework
+        run: dart pub get
+
+      - name: Run tests
+        working-directory: packages/forge_framework
+        run: dart test
+
+  test-orm-sqlite:
+    name: Test forge_orm (SQLite)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.9.2'
+
+      - name: Install dependencies
+        working-directory: packages/forge_orm
+        run: dart pub get
+
+      - name: Run tests with SQLite
+        working-directory: packages/forge_orm
+        env:
+          FORGE_TEST_DB: sqlite
+        run: dart test
+
+  test-orm-mysql:
+    name: Test forge_orm (MySQL)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.9.2'
+
+      - name: Wait for MySQL
+        run: |
+          until mysqladmin ping -h"127.0.0.1" -P3306 -utest_user -ptest_password --silent; do
+            echo 'Waiting for MySQL...'
+            sleep 2
+          done
+
+      - name: Install dependencies
+        working-directory: packages/forge_orm
+        run: dart pub get
+
+      - name: Run tests with MySQL
+        working-directory: packages/forge_orm
+        env:
+          FORGE_TEST_DB: mysql
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+          MYSQL_SECURE: false
+        run: dart test

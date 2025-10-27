@@ -1,0 +1,30 @@
+name: Package Analysis (Pana)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze:
+    name: Analyze with Pana
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - forge_core
+          - forge_orm
+          - forge_framework
+          - forge_builder
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Pana Analysis
+        uses: flutterings/dart-package-analyzer@v1
+        with:
+          relativePath: packages/${{ matrix.package }}/

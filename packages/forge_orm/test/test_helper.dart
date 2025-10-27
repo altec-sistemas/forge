@@ -1,16 +1,24 @@
+import 'dart:io';
 import 'package:forge_core/forge_core.dart';
 import 'package:forge_orm/forge_orm.dart';
 import 'package:forge_orm/src/connection/mysql_connection.dart';
+import 'package:forge_orm/src/connection/sqllite_connection.dart';
 import 'test_entities.dart';
 import 'test_helper.bundle.dart';
 
-/// Helper class to configure test environment
+/// Helper class to configure test environment with database selection from environment
 class TestHelper {
   late final Orm orm;
   late final Database database;
   late final Serializer serializer;
   late final MetadataRegistry registry;
   late final MetadataSchemaResolver schemaResolver;
+
+  /// Gets database type from environment variable
+  /// Defaults to SQLite for safety
+  String get _databaseType {
+    return Platform.environment['FORGE_TEST_DB']?.toLowerCase() ?? 'sqlite';
+  }
 
   /// Initializes the ORM for tests
   Future<void> setup() async {
@@ -30,14 +38,8 @@ class TestHelper {
       encoders: [JsonEncoder()],
     );
 
-    database = MySQLDatabase(
-      database: 'test_db',
-      host: 'localhost',
-      port: 3306,
-      username: 'root',
-      password: '',
-      secure: true,
-    );
+    // Select database based on environment
+    database = _createDatabase();
 
     await database.connect();
     schemaResolver = MetadataSchemaResolver(
@@ -55,6 +57,25 @@ class TestHelper {
     // Creates the tables
     await createTables();
     await clearTables();
+  }
+
+  /// Creates database instance based on environment configuration
+  Database _createDatabase() {
+    switch (_databaseType) {
+      case 'mysql':
+        return MySQLDatabase(
+          database: Platform.environment['MYSQL_DATABASE'] ?? 'test_db',
+          host: Platform.environment['MYSQL_HOST'] ?? 'localhost',
+          port: int.parse(Platform.environment['MYSQL_PORT'] ?? '3306'),
+          username: Platform.environment['MYSQL_USER'] ?? 'test_user',
+          password: Platform.environment['MYSQL_PASSWORD'] ?? 'test_password',
+          secure: Platform.environment['MYSQL_SECURE'] == 'true',
+        );
+
+      case 'sqlite':
+      default:
+        return SqliteDatabase(path: null);
+    }
   }
 
   /// Creates all necessary tables
@@ -84,10 +105,12 @@ class TestHelper {
 
     for (final table in tables) {
       try {
-        await database.connection.execute('TRUNCATE TABLE $table');
-      } catch (e) {
-        // Ignores errors if the table doesn't exist
-      }
+        if (_databaseType == 'sqlite') {
+          await database.connection.execute('DELETE FROM $table');
+        } else {
+          await database.connection.execute('TRUNCATE TABLE $table');
+        }
+      } catch (e) {}
     }
   }
 
