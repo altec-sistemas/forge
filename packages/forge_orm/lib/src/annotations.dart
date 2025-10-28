@@ -72,6 +72,21 @@ class Column {
        precision = null,
        scale = null;
 
+  const Column.char({
+    this.length = 1,
+    this.nullable = false,
+    this.defaultValue,
+    this.unique = false,
+    this.comment,
+    this.primaryKey = false,
+    this.name,
+  }) : type = ColumnType.char,
+       autoIncrement = false,
+       unsigned = false,
+       dateTimeRole = null,
+       precision = null,
+       scale = null;
+
   const Column.integer({
     this.nullable = false,
     this.defaultValue,
