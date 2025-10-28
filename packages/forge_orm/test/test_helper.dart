@@ -69,7 +69,7 @@ class TestHelper {
           port: int.parse(Platform.environment['MYSQL_PORT'] ?? '3306'),
           username: Platform.environment['MYSQL_USER'] ?? 'test_user',
           password: Platform.environment['MYSQL_PASSWORD'] ?? 'test_password',
-          secure: Platform.environment['MYSQL_SECURE'] == 'true',
+          secure: true,
         );
 
       case 'sqlite':
@@ -110,7 +110,7 @@ class TestHelper {
         } else {
           await database.connection.execute('TRUNCATE TABLE $table');
         }
-      } catch (e) {}
+      } catch (_) {}
     }
   }
 
