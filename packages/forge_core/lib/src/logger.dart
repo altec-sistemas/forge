@@ -43,6 +43,12 @@ abstract class Logger {
   /// Sets the minimum log level.
   set minLevel(LogLevel level);
 
+  factory Logger({required LogLevel minLevel, List<LogHandler>? handlers}) =>
+      _LoggerImpl(
+        minLevel: minLevel,
+        handlers: handlers,
+      );
+
   /// Logs a message at the specified level.
   void log(
     LogLevel level,
@@ -54,19 +60,13 @@ abstract class Logger {
   });
 
   /// Logs a debug message.
-  void debug(String message, {String? context, Map<String, dynamic>? extra}) {
-    log(LogLevel.debug, message, context: context, extra: extra);
-  }
+  void debug(String message, {String? context, Map<String, dynamic>? extra});
 
   /// Logs an info message.
-  void info(String message, {String? context, Map<String, dynamic>? extra}) {
-    log(LogLevel.info, message, context: context, extra: extra);
-  }
+  void info(String message, {String? context, Map<String, dynamic>? extra});
 
   /// Logs a success message.
-  void success(String message, {String? context, Map<String, dynamic>? extra}) {
-    log(LogLevel.success, message, context: context, extra: extra);
-  }
+  void success(String message, {String? context, Map<String, dynamic>? extra});
 
   /// Logs a warning message.
   void warning(
@@ -75,16 +75,7 @@ abstract class Logger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, dynamic>? extra,
-  }) {
-    log(
-      LogLevel.warning,
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
+  });
 
   /// Logs an error message.
   void error(
@@ -93,16 +84,7 @@ abstract class Logger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, dynamic>? extra,
-  }) {
-    log(
-      LogLevel.error,
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
+  });
 
   /// Logs a fatal message.
   void fatal(
@@ -111,16 +93,7 @@ abstract class Logger {
     Object? error,
     StackTrace? stackTrace,
     Map<String, dynamic>? extra,
-  }) {
-    log(
-      LogLevel.fatal,
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
+  });
 
   /// Creates a child logger with a specific context.
   Logger child(String context);
@@ -138,15 +111,15 @@ abstract class LogHandler {
   Future<void> close() async {}
 }
 
-/// Default logger implementation with multiple handlers.
-class DefaultLogger extends Logger {
+/// Default logger implementation with multiple handlers (private).
+class _LoggerImpl with LoggerMixin implements Logger {
   final List<LogHandler> _handlers;
   final String? _context;
 
   @override
   LogLevel minLevel;
 
-  DefaultLogger({
+  _LoggerImpl({
     this.minLevel = LogLevel.info,
     List<LogHandler>? handlers,
     String? context,
@@ -195,7 +168,7 @@ class DefaultLogger extends Logger {
 
   @override
   Logger child(String context) {
-    return DefaultLogger(
+    return _LoggerImpl(
       minLevel: minLevel,
       handlers: _handlers,
       context: _context != null ? '$_context.$context' : context,
@@ -210,6 +183,115 @@ class DefaultLogger extends Logger {
   /// Close all handlers.
   Future<void> close() async {
     await Future.wait(_handlers.map((h) => h.close()));
+  }
+}
+
+/// Mixin para simplificar a implementação dos métodos de log.
+///
+/// Classes que usam este mixin devem implementar apenas o método `log()`.
+/// Os métodos de conveniência (debug, info, success, etc.) são fornecidos automaticamente.
+///
+/// Exemplo de uso:
+/// ```dart
+/// class CustomLogger with LoggerMixin implements Logger {
+///   @override
+///   LogLevel minLevel = LogLevel.info;
+///
+///   @override
+///   set minLevel(LogLevel level) => minLevel = level;
+///
+///   @override
+///   void log(
+///     LogLevel level,
+///     String message, {
+///     String? context,
+///     Object? error,
+///     StackTrace? stackTrace,
+///     Map<String, dynamic>? extra,
+///   }) {
+///     // Sua implementação customizada aqui
+///   }
+///
+///   @override
+///   Logger child(String context) {
+///     // Implementação do child logger
+///   }
+/// }
+/// ```
+mixin LoggerMixin implements Logger {
+  /// Logs a debug message.
+  @override
+  void debug(String message, {String? context, Map<String, dynamic>? extra}) {
+    log(LogLevel.debug, message, context: context, extra: extra);
+  }
+
+  /// Logs an info message.
+  @override
+  void info(String message, {String? context, Map<String, dynamic>? extra}) {
+    log(LogLevel.info, message, context: context, extra: extra);
+  }
+
+  /// Logs a success message.
+  @override
+  void success(String message, {String? context, Map<String, dynamic>? extra}) {
+    log(LogLevel.success, message, context: context, extra: extra);
+  }
+
+  /// Logs a warning message.
+  @override
+  void warning(
+    String message, {
+    String? context,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+  }) {
+    log(
+      LogLevel.warning,
+      message,
+      context: context,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
+  }
+
+  /// Logs an error message.
+  @override
+  void error(
+    String message, {
+    String? context,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+  }) {
+    log(
+      LogLevel.error,
+      message,
+      context: context,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
+  }
+
+  /// Logs a fatal message.
+  @override
+  void fatal(
+    String message, {
+    String? context,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+  }) {
+    log(
+      LogLevel.fatal,
+      message,
+      context: context,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
   }
 }
 
@@ -283,7 +365,7 @@ class ConsoleLogHandler extends LogHandler {
     final colorCode = switch (level) {
       LogLevel.debug => '\x1B[34m', // Blue
       LogLevel.info => '\x1B[32m', // Green
-      LogLevel.success => '\x1B[32m\x1B[1m', // Green Bold (destaque)
+      LogLevel.success => '\x1B[32m\x1B[1m', // Green Bold
       LogLevel.warning => '\x1B[33m', // Yellow
       LogLevel.error => '\x1B[31m\x1B[1m', // Red Bold
       LogLevel.fatal => '\x1B[31m\x1B[1m', // Red Bold
@@ -303,7 +385,6 @@ class ConsoleLogHandler extends LogHandler {
   }
 
   void _printStackTrace(StackTrace stackTrace) {
-    // Remove <asynchronous suspension> lines and apply dark gray color
     final trace = stackTrace.toString().replaceAll(
       '<asynchronous suspension>\n',
       '',
@@ -315,7 +396,7 @@ class ConsoleLogHandler extends LogHandler {
 }
 
 /// Null logger that discards all logs.
-class NullLogger extends Logger {
+class NullLogger with LoggerMixin implements Logger {
   @override
   LogLevel minLevel = LogLevel.fatal;
 

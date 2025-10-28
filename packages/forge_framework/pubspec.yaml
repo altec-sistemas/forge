@@ -1,6 +1,6 @@
 name: forge_framework
 description: Forge Framework is a Dart framework to build server and command line applications faster.
-version: 0.1.1
+version: 0.1.2
 repository: https://github.com/altec-sistemas/forge
 resolution: workspace
 

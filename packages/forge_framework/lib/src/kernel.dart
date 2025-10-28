@@ -60,7 +60,7 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
   @override
   Logger logger;
 
-  _KernelImpl(this.env, Logger? logger) : logger = logger ?? NullLogger();
+  _KernelImpl(this.env, [Logger? logger]) : logger = logger ?? NullLogger();
 
   @override
   void addRunner(Runner runner) {

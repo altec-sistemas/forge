@@ -1,3 +1,7 @@
+## 0.1.4
+
+- More improvements in the log system.
+
 ## 0.1.3
 
 - Added support for proxy classes in metadata_registry.

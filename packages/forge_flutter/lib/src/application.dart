@@ -57,7 +57,9 @@ class _ApplicationImpl with BaseKernelMixin implements Application {
   Logger logger;
 
   _ApplicationImpl(this.env, [Logger? logger])
-    : logger = logger ?? DefaultLogger(handlers: [ConsoleLogHandler()]) {
+    : logger =
+          logger ??
+          Logger(handlers: [ConsoleLogHandler()], minLevel: LogLevel.info) {
     Application._instance = this;
   }
 
