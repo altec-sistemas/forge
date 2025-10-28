@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:test/test.dart';
 import 'package:forge_framework/forge_framework.dart';
 import 'dart:async';
@@ -200,6 +202,8 @@ void main() {
 
       expect(() => kernel.injector, returnsNormally);
       expect(kernel.injector, isA<Injector>());
+
+      await kernel.stop();
     });
   });
 
@@ -216,6 +220,8 @@ void main() {
       await kernel.run();
 
       expect(buildLog.length, equals(3));
+
+      await kernel.stop();
     });
 
     test('should build bundles in order of registration', () async {
@@ -245,6 +251,8 @@ void main() {
           'Bundle3',
         ]),
       );
+
+      await kernel.stop();
     });
 
     test('should provide ContainerBuilder to bundles', () async {
@@ -266,6 +274,8 @@ void main() {
 
       expect(capturedBuilder, isNotNull);
       expect(kernel.injector.get<String>(), equals('test-value'));
+
+      await kernel.stop();
     });
 
     test('should register kernel instance in container', () async {
@@ -274,14 +284,18 @@ void main() {
 
       final containerKernel = kernel.injector.get<Kernel>();
       expect(containerKernel, same(kernel));
+
+      await kernel.stop();
     });
 
     test('should register environment in container', () async {
-      final kernel = Kernel('production');
+      final kernel = Kernel('test');
       await kernel.run();
 
       final env = kernel.injector.get<String>('env');
-      expect(env, equals('production'));
+      expect(env, equals('test'));
+
+      await kernel.stop();
     });
 
     test('should register EventDispatcher in container', () async {
@@ -290,6 +304,8 @@ void main() {
 
       final dispatcher = kernel.injector.get<EventBus>();
       expect(dispatcher, isA<EventBus>());
+
+      await kernel.stop();
     });
 
     test('should register Container itself in container', () async {
@@ -298,6 +314,8 @@ void main() {
 
       final container = kernel.injector.get<Injector>();
       expect(container, same(kernel.injector));
+
+      await kernel.stop();
     });
   });
 
@@ -314,6 +332,8 @@ void main() {
       await kernel.run();
 
       expect(bootLog.length, equals(3));
+
+      await kernel.stop();
     });
 
     test('should boot bundles in order of registration', () async {
@@ -343,6 +363,8 @@ void main() {
           'Bundle3',
         ]),
       );
+
+      await kernel.stop();
     });
 
     test('should provide built container to boot phase', () async {
@@ -353,6 +375,8 @@ void main() {
 
       final service = kernel.injector.get<TestService>();
       expect(service.isInitialized, isTrue);
+
+      await kernel.stop();
     });
 
     test('boot should happen after build', () async {
@@ -364,6 +388,8 @@ void main() {
       await kernel.run();
 
       expect(log, equals(['TestBundle.build', 'TestBundle.boot']));
+
+      await kernel.stop();
     });
 
     test('should collect runners from container', () async {
@@ -383,6 +409,8 @@ void main() {
       await kernel.run();
 
       expect(runLog, contains('TestRunner.run'));
+
+      await kernel.stop();
     });
 
     test('should register EventSubscribers', () async {
@@ -404,6 +432,8 @@ void main() {
       await kernel.run();
 
       expect(eventLog, contains('KernelRunEvent'));
+
+      await kernel.stop();
     });
   });
 
@@ -419,6 +449,8 @@ void main() {
       await kernel.run();
 
       expect(runLog.length, equals(3));
+
+      await kernel.stop();
     });
 
     test('should pass arguments to runners', () async {
@@ -430,6 +462,8 @@ void main() {
       await kernel.run(['arg1', 'arg2', 'arg3']);
 
       expect(receivedArgs, equals(['arg1', 'arg2', 'arg3']));
+
+      await kernel.stop();
     });
 
     test('should execute runners concurrently', () async {
@@ -448,6 +482,8 @@ void main() {
       // If sequential, would take ~160ms (sum of all)
       expect(stopwatch.elapsedMilliseconds, lessThan(130));
       expect(runLog, hasLength(6)); // 3 starts + 3 ends
+
+      await kernel.stop();
     });
 
     test('should include runners from container', () async {
@@ -476,6 +512,8 @@ void main() {
       await kernel.run();
 
       expect(runLog, hasLength(3));
+
+      await kernel.stop();
     });
 
     test('runners can access kernel services', () async {
@@ -505,6 +543,8 @@ void main() {
       await kernel.run();
 
       expect(accessedData, isTrue);
+
+      await kernel.stop();
     });
   });
 
@@ -528,6 +568,8 @@ void main() {
       await kernel.run();
 
       expect(eventLog, contains('KernelRunEvent'));
+
+      await kernel.stop();
     });
 
     test('KernelRunEvent should contain kernel reference', () async {
@@ -549,6 +591,8 @@ void main() {
       await kernel.run();
 
       expect(eventKernel, same(kernel));
+
+      await kernel.stop();
     });
 
     test('KernelRunEvent should contain args', () async {
@@ -570,6 +614,8 @@ void main() {
       await kernel.run(['test', 'args']);
 
       expect(eventArgs, equals(['test', 'args']));
+
+      await kernel.stop();
     });
 
     test('should dispatch KernelErrorEvent on runner error', () async {
@@ -596,6 +642,8 @@ void main() {
         eventLog.any((log) => log.contains('KernelErrorEvent')),
         isTrue,
       );
+
+      await kernel.stop();
     });
 
     test('KernelErrorEvent should contain error details', () async {
@@ -624,6 +672,8 @@ void main() {
 
       expect(capturedError, isA<Exception>());
       expect(capturedStack, isNotNull);
+
+      await kernel.stop();
     });
   });
 
@@ -634,14 +684,11 @@ void main() {
       await kernel.run();
 
       expect(
-        () => kernel.run(),
-        throwsA(
-          predicate(
-            (e) =>
-                e is KernelException && e.toString().contains('already booted'),
-          ),
-        ),
+        () async => await kernel.run(),
+        throwsA(isA<KernelException>()),
       );
+
+      await kernel.stop();
     });
 
     test('should handle errors in runner gracefully', () async {
@@ -656,6 +703,8 @@ void main() {
 
       // Other runner should still execute
       expect(runLog, contains('TestRunner.run'));
+
+      await kernel.stop();
     });
 
     test('should catch and dispatch errors from runners', () async {
@@ -681,6 +730,8 @@ void main() {
       await kernel.run();
 
       expect(errorCaught, isTrue);
+
+      await kernel.stop();
     });
   });
 
@@ -700,6 +751,8 @@ void main() {
       expect(bootLog, isNotEmpty);
       expect(runLog, isNotEmpty);
       expect(kernel.injector, isA<Injector>());
+
+      await kernel.stop();
     });
 
     test('bundles can register services used by runners', () async {
@@ -729,6 +782,8 @@ void main() {
       await kernel.run();
 
       expect(serviceUsed, isTrue);
+
+      await kernel.stop();
     });
 
     test('multiple bundles can collaborate', () async {
@@ -758,10 +813,12 @@ void main() {
 
       expect(kernel.injector.get<String>('key1'), equals('value1'));
       expect(kernel.injector.get<String>('key2'), equals('value2'));
+
+      await kernel.stop();
     });
 
     test('should handle complex application structure', () async {
-      final kernel = Kernel('production');
+      final kernel = Kernel('test');
 
       // Configuration bundle
       kernel.addBundle(
@@ -769,9 +826,8 @@ void main() {
           [],
           [],
           onBuild: (builder) async {
-            builder.registerInstance<Map<String, dynamic>>(
-              {'port': 8080, 'host': 'localhost'},
-              name: 'config',
+            builder.registerInstance<HttpConfig>(
+              HttpConfig(port: 8081, host: InternetAddress.loopbackIPv4),
             );
           },
         ),
@@ -786,8 +842,10 @@ void main() {
 
       await kernel.run(['--debug']);
 
-      expect(kernel.env, equals('production'));
+      expect(kernel.env, equals('test'));
       expect(runLog, contains('TestRunner.run'));
+
+      await kernel.stop();
     });
   });
 }

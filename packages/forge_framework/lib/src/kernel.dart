@@ -15,9 +15,10 @@ abstract class Kernel extends BaseKernel {
   /// Creates a new kernel instance for the specified environment.
   ///
   /// [env] typically represents the application environment (e.g., 'dev', 'prod', 'test').
-  factory Kernel([String? env]) => _KernelImpl(env ?? 'prod')
-    ..addBundle(CoreBundle())
-    ..addBundle(HttpBundle());
+  factory Kernel([String? env, Logger? logger]) =>
+      _KernelImpl(env ?? 'prod', logger)
+        ..addBundle(CoreBundle())
+        ..addBundle(HttpBundle());
 
   /// Adds a runner to be executed when the kernel runs.
   void addRunner(Runner runner);
@@ -34,6 +35,9 @@ abstract class Kernel extends BaseKernel {
   ///
   /// Throws [KernelException] if called more than once.
   Future<void> run([List<String>? args]);
+
+  /// Stops the kernel and all running runners.
+  Future<void> stop();
 }
 
 /// Defines an executable component that runs as part of the kernel lifecycle.
@@ -49,12 +53,14 @@ abstract class Runner {
 
 class _KernelImpl with BaseKernelMixin implements Kernel {
   final List<Runner> _runners = [];
-  bool _running = false;
 
   @override
   final String env;
 
-  _KernelImpl(this.env);
+  @override
+  Logger logger;
+
+  _KernelImpl(this.env, Logger? logger) : logger = logger ?? NullLogger();
 
   @override
   void addRunner(Runner runner) {
@@ -72,43 +78,56 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
 
   @override
   Future<void> run([List<String>? args]) async {
-    if (_running) {
-      throw KernelException('Kernel is already running');
-    }
-
-    _running = true;
-
     await build();
 
     if (isBooted) {
       throw KernelException('Kernel is already booted');
     }
 
-    // Use a Completer to ensure the Future only completes when everything is finished
-    final completer = Completer<void>();
+    await boot();
+    await eventDispatcher.dispatch(KernelRunEvent(this, args));
 
-    runZonedGuarded(
-      () async {
-        await boot();
-        await eventDispatcher.dispatch(KernelRunEvent(this, args));
-        await Future.wait(
+    await runZonedGuarded(
+      () {
+        return Future.wait(
           _runners.map((runner) async {
-            await runner.run(args);
+            try {
+              return await runner.run(args);
+            } catch (e, s) {
+              await eventDispatcher.dispatch(
+                KernelErrorEvent(this, e, s),
+              );
+
+              logger.error(
+                'Unhandled exception in Runner: ${runner.runtimeType}',
+                error: e,
+                stackTrace: s,
+              );
+            }
           }),
         );
-        completer.complete();
       },
-      (error, stackTrace) async {
+      (error, stack) async {
         await eventDispatcher.dispatch(
-          KernelErrorEvent(this, error, stackTrace),
+          KernelErrorEvent(this, error, stack),
         );
+
         logger.error(
-          'Unhandled error during kernel run: $error',
+          'Unhandled exception in Kernel',
           error: error,
-          stackTrace: stackTrace,
+          stackTrace: stack,
         );
       },
     );
+  }
+
+  @override
+  Future<void> stop() async {
+    for (final runner in _runners) {
+      if (runner is Stoppable) {
+        (runner as Stoppable).stop();
+      }
+    }
   }
 
   @override
@@ -127,4 +146,8 @@ class KernelRunEvent {
   final List<String>? args;
 
   KernelRunEvent(this.kernel, this.args);
+}
+
+abstract class Stoppable {
+  Future<void> stop();
 }

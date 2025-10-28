@@ -14,6 +14,7 @@ abstract class BaseKernel {
 
   /// Logger instance
   Logger get logger;
+  set logger(Logger value);
 
   /// Registers a bundle to be built and initialized with the kernel.
   void addBundle(Bundle bundle);
@@ -46,22 +47,6 @@ mixin BaseKernelMixin implements BaseKernel {
 
   @override
   final EventBus eventDispatcher = EventBus();
-
-  Logger? _logger;
-
-  @override
-  Logger get logger {
-    _logger ??= DefaultLogger(
-      minLevel: env == 'prod' ? LogLevel.info : LogLevel.debug,
-      handlers: [ConsoleLogHandler()],
-    );
-    return _logger!;
-  }
-
-  /// Sets a custom logger instance.
-  set logger(Logger value) {
-    _logger = value;
-  }
 
   @override
   Injector get injector {

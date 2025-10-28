@@ -53,9 +53,12 @@ class _ApplicationImpl with BaseKernelMixin implements Application {
 
   bool _running = false;
 
-  _ApplicationImpl(this.env) {
+  @override
+  Logger logger;
+
+  _ApplicationImpl(this.env, [Logger? logger])
+    : logger = logger ?? DefaultLogger(handlers: [ConsoleLogHandler()]) {
     Application._instance = this;
-    logger.debug('Application instance created', extra: {'env': env});
   }
 
   @override
