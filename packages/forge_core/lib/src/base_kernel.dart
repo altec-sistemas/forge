@@ -13,8 +13,7 @@ abstract class BaseKernel {
   EventBus get eventDispatcher;
 
   /// Logger instance
-  Logger get logger;
-  set logger(Logger value);
+  LoggerManager get logger;
 
   /// Registers a bundle to be built and initialized with the kernel.
   void addBundle(Bundle bundle);

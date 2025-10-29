@@ -54,12 +54,10 @@ class _ApplicationImpl with BaseKernelMixin implements Application {
   bool _running = false;
 
   @override
-  Logger logger;
+  final LoggerManager logger;
 
-  _ApplicationImpl(this.env, [Logger? logger])
-    : logger =
-          logger ??
-          Logger(handlers: [ConsoleLogHandler()], minLevel: LogLevel.info) {
+  _ApplicationImpl(this.env, [LoggerManager? logger])
+    : logger = logger ?? LoggerManager() {
     Application._instance = this;
   }
 

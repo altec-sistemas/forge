@@ -15,7 +15,7 @@ abstract class Kernel extends BaseKernel {
   /// Creates a new kernel instance for the specified environment.
   ///
   /// [env] typically represents the application environment (e.g., 'dev', 'prod', 'test').
-  factory Kernel([String? env, Logger? logger]) =>
+  factory Kernel([String? env, LoggerManager? logger]) =>
       _KernelImpl(env ?? 'prod', logger)
         ..addBundle(CoreBundle())
         ..addBundle(HttpBundle());
@@ -58,9 +58,10 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
   final String env;
 
   @override
-  Logger logger;
+  final LoggerManager logger;
 
-  _KernelImpl(this.env, [Logger? logger]) : logger = logger ?? NullLogger();
+  _KernelImpl(this.env, [LoggerManager? logger])
+    : logger = logger ?? LoggerManager();
 
   @override
   void addRunner(Runner runner) {

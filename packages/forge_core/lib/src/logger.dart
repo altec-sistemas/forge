@@ -20,6 +20,7 @@ class LogEntry {
   final DateTime timestamp;
   final LogLevel level;
   final String message;
+  final String channelName;
   final String? context;
   final Object? error;
   final StackTrace? stackTrace;
@@ -28,6 +29,7 @@ class LogEntry {
   LogEntry({
     required this.level,
     required this.message,
+    required this.channelName,
     this.context,
     this.error,
     this.stackTrace,
@@ -35,20 +37,28 @@ class LogEntry {
   }) : timestamp = DateTime.now();
 }
 
+/// Handler for processing log entries.
+abstract class LogHandler {
+  /// Minimum level this handler will process
+  LogLevel minLevel;
+
+  LogHandler({this.minLevel = LogLevel.debug});
+
+  /// Check if this handler should process the given level
+  bool shouldHandle(LogLevel level) => level.severity >= minLevel.severity;
+
+  /// Process a log entry.
+  void handle(LogEntry entry);
+
+  /// Flush any buffered logs.
+  Future<void> flush() async {}
+
+  /// Close the handler and release resources.
+  Future<void> close() async {}
+}
+
 /// Base logging interface.
 abstract class Logger {
-  /// Minimum log level to process.
-  LogLevel get minLevel;
-
-  /// Sets the minimum log level.
-  set minLevel(LogLevel level);
-
-  factory Logger({required LogLevel minLevel, List<LogHandler>? handlers}) =>
-      _LoggerImpl(
-        minLevel: minLevel,
-        handlers: handlers,
-      );
-
   /// Logs a message at the specified level.
   void log(
     LogLevel level,
@@ -99,42 +109,29 @@ abstract class Logger {
   Logger child(String context);
 }
 
-/// Handler for processing log entries.
-abstract class LogHandler {
-  /// Process a log entry.
-  void handle(LogEntry entry);
-
-  /// Flush any buffered logs.
-  Future<void> flush() async {}
-
-  /// Close the handler and release resources.
-  Future<void> close() async {}
-}
-
-/// Default logger implementation with multiple handlers (private).
-class _LoggerImpl with LoggerMixin implements Logger {
-  final List<LogHandler> _handlers;
+/// Represents a logging channel (similar to Monolog's Logger).
+/// Each channel has its own name and set of handlers.
+class LogChannel implements Logger {
+  final String name;
+  final List<LogHandler> _handlers = [];
   final String? _context;
 
-  @override
-  LogLevel minLevel;
+  LogChannel(this.name, {String? context}) : _context = context;
 
-  _LoggerImpl({
-    this.minLevel = LogLevel.info,
-    List<LogHandler>? handlers,
-    String? context,
-  }) : _handlers = handlers ?? [],
-       _context = context;
-
-  /// Adds a log handler.
-  void addHandler(LogHandler handler) {
+  /// Add a handler to this channel.
+  void pushHandler(LogHandler handler) {
     _handlers.add(handler);
   }
 
-  /// Removes a log handler.
-  void removeHandler(LogHandler handler) {
-    _handlers.remove(handler);
+  /// Remove a handler from this channel.
+  void popHandler() {
+    if (_handlers.isNotEmpty) {
+      _handlers.removeLast();
+    }
   }
+
+  /// Get all handlers.
+  List<LogHandler> get handlers => List.unmodifiable(_handlers);
 
   @override
   void log(
@@ -145,11 +142,10 @@ class _LoggerImpl with LoggerMixin implements Logger {
     StackTrace? stackTrace,
     Map<String, dynamic>? extra,
   }) {
-    if (level.severity < minLevel.severity) return;
-
     final entry = LogEntry(
       level: level,
       message: message,
+      channelName: name,
       context: context ?? _context,
       error: error,
       stackTrace: stackTrace,
@@ -158,7 +154,9 @@ class _LoggerImpl with LoggerMixin implements Logger {
 
     for (final handler in _handlers) {
       try {
-        handler.handle(entry);
+        if (handler.shouldHandle(level)) {
+          handler.handle(entry);
+        }
       } catch (e) {
         // Avoid infinite loops if handler throws
         print('Error in log handler: $e');
@@ -167,77 +165,20 @@ class _LoggerImpl with LoggerMixin implements Logger {
   }
 
   @override
-  Logger child(String context) {
-    return _LoggerImpl(
-      minLevel: minLevel,
-      handlers: _handlers,
-      context: _context != null ? '$_context.$context' : context,
-    );
-  }
-
-  /// Flush all handlers.
-  Future<void> flush() async {
-    await Future.wait(_handlers.map((h) => h.flush()));
-  }
-
-  /// Close all handlers.
-  Future<void> close() async {
-    await Future.wait(_handlers.map((h) => h.close()));
-  }
-}
-
-/// Mixin para simplificar a implementação dos métodos de log.
-///
-/// Classes que usam este mixin devem implementar apenas o método `log()`.
-/// Os métodos de conveniência (debug, info, success, etc.) são fornecidos automaticamente.
-///
-/// Exemplo de uso:
-/// ```dart
-/// class CustomLogger with LoggerMixin implements Logger {
-///   @override
-///   LogLevel minLevel = LogLevel.info;
-///
-///   @override
-///   set minLevel(LogLevel level) => minLevel = level;
-///
-///   @override
-///   void log(
-///     LogLevel level,
-///     String message, {
-///     String? context,
-///     Object? error,
-///     StackTrace? stackTrace,
-///     Map<String, dynamic>? extra,
-///   }) {
-///     // Sua implementação customizada aqui
-///   }
-///
-///   @override
-///   Logger child(String context) {
-///     // Implementação do child logger
-///   }
-/// }
-/// ```
-mixin LoggerMixin implements Logger {
-  /// Logs a debug message.
-  @override
   void debug(String message, {String? context, Map<String, dynamic>? extra}) {
     log(LogLevel.debug, message, context: context, extra: extra);
   }
 
-  /// Logs an info message.
   @override
   void info(String message, {String? context, Map<String, dynamic>? extra}) {
     log(LogLevel.info, message, context: context, extra: extra);
   }
 
-  /// Logs a success message.
   @override
   void success(String message, {String? context, Map<String, dynamic>? extra}) {
     log(LogLevel.success, message, context: context, extra: extra);
   }
 
-  /// Logs a warning message.
   @override
   void warning(
     String message, {
@@ -256,7 +197,6 @@ mixin LoggerMixin implements Logger {
     );
   }
 
-  /// Logs an error message.
   @override
   void error(
     String message, {
@@ -275,7 +215,6 @@ mixin LoggerMixin implements Logger {
     );
   }
 
-  /// Logs a fatal message.
   @override
   void fatal(
     String message, {
@@ -293,6 +232,227 @@ mixin LoggerMixin implements Logger {
       extra: extra,
     );
   }
+
+  @override
+  LogChannel child(String context) {
+    final childChannel = LogChannel(
+      name,
+      context: _context != null ? '$_context.$context' : context,
+    );
+
+    // Share the same handlers
+    for (final handler in _handlers) {
+      childChannel.pushHandler(handler);
+    }
+
+    return childChannel;
+  }
+
+  /// Flush all handlers.
+  Future<void> flush() async {
+    await Future.wait(_handlers.map((h) => h.flush()));
+  }
+
+  /// Close all handlers.
+  Future<void> close() async {
+    await Future.wait(_handlers.map((h) => h.close()));
+  }
+}
+
+/// Configuration for a predefined channel.
+class ChannelConfig {
+  final String name;
+  final List<LogHandler> handlers;
+
+  ChannelConfig({
+    required this.name,
+    List<LogHandler>? handlers,
+  }) : handlers = handlers ?? [];
+
+  /// Add a handler to this configuration.
+  ChannelConfig withHandler(LogHandler handler) {
+    handlers.add(handler);
+    return this;
+  }
+}
+
+/// Main LoggerManager class that manages multiple channels (similar to Monolog).
+class LoggerManager implements Logger {
+  final Map<String, LogChannel> _channels = {};
+  final Map<String, ChannelConfig> _channelConfigs = {};
+  final String _defaultChannelName;
+
+  LoggerManager({
+    String defaultChannel = 'app',
+    List<ChannelConfig>? channels,
+  }) : _defaultChannelName = defaultChannel {
+    // Register predefined channels
+    if (channels != null) {
+      for (final config in channels) {
+        _channelConfigs[config.name] = config;
+      }
+    }
+
+    // Create default channel
+    _getOrCreateChannel(defaultChannel);
+  }
+
+  /// Internal method to get or create a channel with configuration.
+  LogChannel _getOrCreateChannel(String name) {
+    if (_channels.containsKey(name)) {
+      return _channels[name]!;
+    }
+
+    final channel = LogChannel(name);
+
+    // Apply predefined configuration if exists
+    if (_channelConfigs.containsKey(name)) {
+      final config = _channelConfigs[name]!;
+      for (final handler in config.handlers) {
+        channel.pushHandler(handler);
+      }
+    }
+
+    _channels[name] = channel;
+    return channel;
+  }
+
+  /// Get or create a channel by name.
+  LogChannel channel(String name) {
+    return _getOrCreateChannel(name);
+  }
+
+  /// Get the default channel.
+  LogChannel get defaultChannel => channel(_defaultChannelName);
+
+  /// Check if a channel exists.
+  bool hasChannel(String name) => _channels.containsKey(name);
+
+  /// Get all channel names.
+  List<String> get channelNames => _channels.keys.toList();
+
+  /// Get all configured (predefined) channel names.
+  List<String> get configuredChannelNames => _channelConfigs.keys.toList();
+
+  /// Remove a channel.
+  void removeChannel(String name) {
+    _channels.remove(name);
+  }
+
+  /// Register a new channel configuration (can be used after LoggerManager creation).
+  void registerChannelConfig(ChannelConfig config) {
+    _channelConfigs[config.name] = config;
+
+    // If channel already exists, apply handlers
+    if (_channels.containsKey(config.name)) {
+      final channel = _channels[config.name]!;
+      for (final handler in config.handlers) {
+        channel.pushHandler(handler);
+      }
+    }
+  }
+
+  // Convenience methods that delegate to default channel and implement Logger interface
+
+  @override
+  void log(
+    LogLevel level,
+    String message, {
+    String? context,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+  }) {
+    defaultChannel.log(
+      level,
+      message,
+      context: context,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
+  }
+
+  @override
+  void debug(String message, {String? context, Map<String, dynamic>? extra}) {
+    defaultChannel.debug(message, context: context, extra: extra);
+  }
+
+  @override
+  void info(String message, {String? context, Map<String, dynamic>? extra}) {
+    defaultChannel.info(message, context: context, extra: extra);
+  }
+
+  @override
+  void success(String message, {String? context, Map<String, dynamic>? extra}) {
+    defaultChannel.success(message, context: context, extra: extra);
+  }
+
+  @override
+  void warning(
+    String message, {
+    String? context,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+  }) {
+    defaultChannel.warning(
+      message,
+      context: context,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
+  }
+
+  @override
+  void error(
+    String message, {
+    String? context,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+  }) {
+    defaultChannel.error(
+      message,
+      context: context,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
+  }
+
+  @override
+  void fatal(
+    String message, {
+    String? context,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+  }) {
+    defaultChannel.fatal(
+      message,
+      context: context,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
+  }
+
+  @override
+  Logger child(String context) {
+    return defaultChannel.child(context);
+  }
+
+  /// Flush all channels.
+  Future<void> flush() async {
+    await Future.wait(_channels.values.map((c) => c.flush()));
+  }
+
+  /// Close all channels.
+  Future<void> close() async {
+    await Future.wait(_channels.values.map((c) => c.close()));
+  }
 }
 
 /// Console log handler that prints to stdout with colored formatting.
@@ -300,11 +460,14 @@ class ConsoleLogHandler extends LogHandler {
   final bool colored;
   final bool showTimestamp;
   final bool showContext;
+  final bool showChannel;
 
   ConsoleLogHandler({
+    super.minLevel,
     this.colored = true,
     this.showTimestamp = true,
     this.showContext = true,
+    this.showChannel = true,
   });
 
   @override
@@ -321,6 +484,12 @@ class ConsoleLogHandler extends LogHandler {
     // Level with color
     final levelStr = _formatLevel(entry.level);
     buffer.write(levelStr);
+
+    // Channel
+    if (showChannel) {
+      final channelStr = _formatChannel(entry.channelName);
+      buffer.write(' $channelStr');
+    }
 
     // Context
     if (showContext && entry.context != null) {
@@ -374,6 +543,11 @@ class ConsoleLogHandler extends LogHandler {
     return '$colorCode$levelName\x1B[0m';
   }
 
+  String _formatChannel(String channel) {
+    final channelStr = '[$channel]';
+    return colored ? '\x1B[35m$channelStr\x1B[0m' : channelStr; // Magenta
+  }
+
   String _formatContext(String context) {
     final contextStr = '[$context]';
     return colored ? '\x1B[36m$contextStr\x1B[0m' : contextStr; // Cyan
@@ -395,21 +569,97 @@ class ConsoleLogHandler extends LogHandler {
   }
 }
 
-/// Null logger that discards all logs.
-class NullLogger with LoggerMixin implements Logger {
-  @override
-  LogLevel minLevel = LogLevel.fatal;
+/// File log handler that writes to a file.
+class FileLogHandler extends LogHandler {
+  final String filePath;
+  final bool includeTimestamp;
+  final StringBuffer _buffer = StringBuffer();
+  Timer? _flushTimer;
+
+  FileLogHandler({
+    required this.filePath,
+    super.minLevel,
+    this.includeTimestamp = true,
+    Duration autoFlushInterval = const Duration(seconds: 5),
+  }) {
+    // Auto flush periodically
+    _flushTimer = Timer.periodic(autoFlushInterval, (_) => flush());
+  }
 
   @override
-  void log(
-    LogLevel level,
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {}
+  void handle(LogEntry entry) {
+    final timestamp = includeTimestamp
+        ? '${entry.timestamp.toIso8601String()} '
+        : '';
+
+    final context = entry.context != null ? '[${entry.context}] ' : '';
+
+    final line =
+        '$timestamp[${entry.level.name.toUpperCase()}] '
+        '[${entry.channelName}] $context${entry.message}\n';
+
+    _buffer.write(line);
+
+    if (entry.error != null) {
+      _buffer.write('  Error: ${entry.error}\n');
+    }
+
+    if (entry.stackTrace != null) {
+      _buffer.write('  Stack trace:\n');
+      _buffer.write(
+        '  ${entry.stackTrace.toString().replaceAll('\n', '\n  ')}\n',
+      );
+    }
+
+    if (entry.extra != null && entry.extra!.isNotEmpty) {
+      _buffer.write('  Extra: ${entry.extra}\n');
+    }
+  }
 
   @override
-  Logger child(String context) => this;
+  Future<void> flush() async {
+    if (_buffer.isEmpty) return;
+
+    try {
+      // In a real implementation, write to actual file
+      // For now, just simulate
+      print('[FILE WRITE to $filePath] ${_buffer.length} bytes');
+      _buffer.clear();
+    } catch (e) {
+      print('Error flushing file handler: $e');
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    _flushTimer?.cancel();
+    await flush();
+  }
+}
+
+/// Null logger handler that discards all logs.
+class NullLogHandler extends LogHandler {
+  NullLogHandler() : super(minLevel: LogLevel.fatal);
+
+  @override
+  void handle(LogEntry entry) {}
+}
+
+/// Stream handler that sends logs to a stream.
+class StreamLogHandler extends LogHandler {
+  final StreamController<LogEntry> _controller = StreamController.broadcast();
+
+  StreamLogHandler({super.minLevel});
+
+  Stream<LogEntry> get stream => _controller.stream;
+
+  @override
+  void handle(LogEntry entry) {
+    _controller.add(entry);
+  }
+
+  @override
+  Future<void> close() async {
+    await _controller.close();
+  }
 }
