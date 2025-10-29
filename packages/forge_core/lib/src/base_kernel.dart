@@ -80,7 +80,12 @@ mixin BaseKernelMixin implements BaseKernel {
     registerCoreServices(builder);
 
     builder.registerFactory<EventBus>((c) => eventDispatcher);
-    builder.registerFactory<Logger>((c) => logger);
+    for (final channel in logger.channelNames) {
+      builder.registerSingleton<Logger>(
+        (c) => logger.channel(channel),
+        name: "log.$channel",
+      );
+    }
     builder.registerSingleton<Injector>((i) => _injector!);
     builder.registerInstance<String>(env, name: 'env');
 
