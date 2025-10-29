@@ -1,3 +1,7 @@
+## 0.1.3
+
+- Replaced log system with a more robust implementation.
+
 ## 0.1.2
 
 - Improved log system.

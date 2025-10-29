@@ -1,3 +1,7 @@
+## 0.1.5
+
+- Improved log system with LogChannel support.
+
 ## 0.1.4
 
 - More improvements in the log system.
