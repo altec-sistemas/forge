@@ -1,3 +1,7 @@
+## 0.1.6
+
+- Registered log channels on injector.
+
 ## 0.1.5
 
 - Improved log system with LogChannel support.
