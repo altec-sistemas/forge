@@ -69,8 +69,11 @@ class AnnotationProcessor {
 
       final importUri = import.uri;
       if (importUri is DirectiveUriWithLibrary) {
-        final uriStr = importUri.relativeUriString;
-        importCollector!.registerLibraryWithImport(importedLibrary, uriStr);
+        if (importUri.relativeUri.scheme == 'dart' ||
+            importUri.relativeUri.scheme == 'package') {
+          final uriStr = importUri.relativeUriString;
+          importCollector!.registerLibraryWithImport(importedLibrary, uriStr);
+        }
       }
     }
   }
