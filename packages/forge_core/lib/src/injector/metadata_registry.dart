@@ -87,17 +87,27 @@ class ElementMetadata {
 
 /// Represents metadata about a class.
 class ClassMetadata extends ElementMetadata {
+  // Internal maps for efficient lookup by name
+  final Map<String, MethodMetadata> _methodsByName;
+  final Map<String, GetterMetadata> _gettersByName;
+  final Map<String, SetterMetadata> _settersByName;
+  final Map<String, ConstructorMetadata> _constructorsByName;
+
   /// All methods defined in this class.
-  final List<MethodMetadata>? methods;
+  List<MethodMetadata>? get methods =>
+      _methodsByName.isEmpty ? null : _methodsByName.values.toList();
 
   /// All getters defined in this class.
-  final List<GetterMetadata>? getters;
+  List<GetterMetadata>? get getters =>
+      _gettersByName.isEmpty ? null : _gettersByName.values.toList();
 
   /// All setters defined in this class.
-  final List<SetterMetadata>? setters;
+  List<SetterMetadata>? get setters =>
+      _settersByName.isEmpty ? null : _settersByName.values.toList();
 
   /// Constructors metadata (if available).
-  final List<ConstructorMetadata>? constructors;
+  List<ConstructorMetadata>? get constructors =>
+      _constructorsByName.isEmpty ? null : _constructorsByName.values.toList();
 
   /// Factory function to create a proxy instance for this class.
   /// Returns an AbstractProxy that wraps the target object with the given handler.
@@ -108,72 +118,131 @@ class ClassMetadata extends ElementMetadata {
   )?
   createProxy;
 
-  ClassMetadata({
+  // Private constructor
+  ClassMetadata._({
+    required TypeMetadata typeMetadata,
+    required List<dynamic> annotations,
+    required Map<String, MethodMetadata> methodsByName,
+    required Map<String, GetterMetadata> gettersByName,
+    required Map<String, SetterMetadata> settersByName,
+    required Map<String, ConstructorMetadata> constructorsByName,
+    this.createProxy,
+  }) : _methodsByName = methodsByName,
+       _gettersByName = gettersByName,
+       _settersByName = settersByName,
+       _constructorsByName = constructorsByName,
+       super(typeMetadata, annotations);
+
+  // Factory constructor
+  factory ClassMetadata({
     required TypeMetadata typeMetadata,
     List<dynamic> annotations = const [],
-    this.methods,
-    this.getters,
-    this.setters,
-    this.constructors,
-    this.createProxy,
-  }) : super(typeMetadata, annotations) {
-    // Link back-references
+    List<MethodMetadata>? methods,
+    List<GetterMetadata>? getters,
+    List<SetterMetadata>? setters,
+    List<ConstructorMetadata>? constructors,
+    AbstractProxy Function(
+      Object target,
+      ProxyHandler handler,
+      ClassMetadata metadata,
+    )?
+    createProxy,
+  }) {
+    // Create the instance first (without setting back-references)
+    final metadata = ClassMetadata._(
+      typeMetadata: typeMetadata,
+      annotations: annotations,
+      methodsByName: {},
+      gettersByName: {},
+      settersByName: {},
+      constructorsByName: {},
+      createProxy: createProxy,
+    );
+
+    // Now populate the maps and set back-references
     if (methods != null) {
-      for (final method in methods!) {
-        method.classMetadata = this;
+      for (final method in methods) {
+        method.classMetadata = metadata;
+        metadata._methodsByName[method.name] = method;
       }
     }
+
     if (getters != null) {
-      for (final getter in getters!) {
-        getter.classMetadata = this;
+      for (final getter in getters) {
+        getter.classMetadata = metadata;
+        metadata._gettersByName[getter.name] = getter;
       }
     }
+
     if (setters != null) {
-      for (final setter in setters!) {
-        setter.classMetadata = this;
+      for (final setter in setters) {
+        setter.classMetadata = metadata;
+        metadata._settersByName[setter.name] = setter;
       }
     }
+
     if (constructors != null) {
-      for (final constructor in constructors!) {
-        constructor.classMetadata = this;
+      for (final constructor in constructors) {
+        constructor.classMetadata = metadata;
+        metadata._constructorsByName[constructor.name] = constructor;
       }
     }
+
+    return metadata;
   }
 
   /// Checks if methods were mapped for this class.
-  bool get hasMappedMethods => methods != null;
+  bool get hasMappedMethods => _methodsByName.isNotEmpty;
 
   /// Checks if getters were mapped for this class.
-  bool get hasMappedGetters => getters != null;
+  bool get hasMappedGetters => _gettersByName.isNotEmpty;
 
   /// Checks if setters were mapped for this class.
-  bool get hasMappedSetters => setters != null;
+  bool get hasMappedSetters => _settersByName.isNotEmpty;
 
   /// Checks if constructors were mapped for this class.
-  bool get hasMappedConstructors => constructors != null;
+  bool get hasMappedConstructors => _constructorsByName.isNotEmpty;
 
   /// Returns methods annotated with [A].
   List<MethodMetadata> methodsAnnotatedWith<A>() {
-    if (methods == null) return [];
-    return methods!.where((m) => m.hasAnnotation<A>()).toList();
+    return _methodsByName.values.where((m) => m.hasAnnotation<A>()).toList();
   }
 
   /// Returns getters annotated with [A].
   List<GetterMetadata> gettersAnnotatedWith<A>() {
-    if (getters == null) return [];
-    return getters!.where((g) => g.hasAnnotation<A>()).toList();
+    return _gettersByName.values.where((g) => g.hasAnnotation<A>()).toList();
   }
 
   /// Returns setters annotated with [A].
   List<SetterMetadata> settersAnnotatedWith<A>() {
-    if (setters == null) return [];
-    return setters!.where((s) => s.hasAnnotation<A>()).toList();
+    return _settersByName.values.where((s) => s.hasAnnotation<A>()).toList();
   }
 
   /// Returns constructors annotated with [A].
   List<ConstructorMetadata> constructorsAnnotatedWith<A>() {
-    if (constructors == null) return [];
-    return constructors!.where((c) => c.hasAnnotation<A>()).toList();
+    return _constructorsByName.values
+        .where((c) => c.hasAnnotation<A>())
+        .toList();
+  }
+
+  /// Gets a getter by name (O(1) lookup).
+  GetterMetadata? getGetterByName(String name) {
+    return _gettersByName[name];
+  }
+
+  /// Gets a setter by name (O(1) lookup).
+  SetterMetadata? getSetterByName(String name) {
+    return _settersByName[name];
+  }
+
+  /// Gets a method by name (O(1) lookup).
+  MethodMetadata? getMethodByName(String name) {
+    return _methodsByName[name];
+  }
+
+  /// Gets a constructor by name (O(1) lookup).
+  ConstructorMetadata? getConstructorByName(String name) {
+    return _constructorsByName[name];
   }
 }
 
