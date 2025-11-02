@@ -66,7 +66,7 @@ class HttpBundle extends Bundle {
       return HttpKernel(
         router: i<Router>(),
         eventBus: i<EventBus>(),
-        logger: i<Logger>(),
+        logger: i<LoggerManager>().channel('http'),
         debug: i<String>('env') == 'dev',
       );
     });
