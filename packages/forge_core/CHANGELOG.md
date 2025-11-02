@@ -1,3 +1,7 @@
+## 0.1.7
+
+- Improved metadata registry
+
 ## 0.1.6
 
 - Registered log channels on injector.

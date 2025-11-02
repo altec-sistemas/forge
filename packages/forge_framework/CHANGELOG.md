@@ -1,3 +1,7 @@
+## 0.1.4
+
+- Added support for disable http server
+
 ## 0.1.3
 
 - Replaced log system with a more robust implementation.

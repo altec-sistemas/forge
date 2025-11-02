@@ -1,3 +1,7 @@
+## 0.1.3
+
+- Improved code generation to handle env filters correctly.
+
 ## 0.1.2
 
 - Fixed annotation processor to not add import statements for classes that are in the same library.
