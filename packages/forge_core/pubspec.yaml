@@ -10,7 +10,9 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
+  colorize: ^3.0.0
   meta: ^1.16.0
+  path: ^1.9.1
   phone_numbers_parser: ^9.0.15
   # path: ^1.9.0
 

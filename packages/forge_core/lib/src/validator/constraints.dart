@@ -18,7 +18,7 @@ class Collection extends Constraint {
 
   const Collection(
     this.fields, {
-    this.allowExtraFields = false,
+    this.allowExtraFields = true,
     this.allowMissingFields = false,
     this.nullMessage,
     this.invalidTypeMessage,

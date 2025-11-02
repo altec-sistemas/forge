@@ -107,6 +107,43 @@ class _MetadataCache {
   }
 }
 
+/// Tracks visited objects to detect circular references
+class _CircularReferenceTracker {
+  final Set<Object> _visited = {};
+  final Map<Object, int> _objectIds = {};
+  int _nextId = 1;
+
+  /// Checks if an object has already been visited (circular reference)
+  bool isVisited(Object object) {
+    return _visited.contains(object);
+  }
+
+  /// Marks an object as visited and returns its ID
+  int markVisited(Object object) {
+    if (!_objectIds.containsKey(object)) {
+      _objectIds[object] = _nextId++;
+    }
+    _visited.add(object);
+    return _objectIds[object]!;
+  }
+
+  /// Unmarks an object (when leaving the recursion level)
+  void unmark(Object object) {
+    _visited.remove(object);
+  }
+
+  /// Gets the reference ID for an object
+  int? getReferenceId(Object object) {
+    return _objectIds[object];
+  }
+
+  void clear() {
+    _visited.clear();
+    _objectIds.clear();
+    _nextId = 1;
+  }
+}
+
 class MetadataTransformer implements Transformer, SerializerAware {
   final MetadataRegistry _metadataRegistry;
   final _MetadataCache _cache = _MetadataCache();
@@ -165,6 +202,19 @@ class MetadataTransformer implements Transformer, SerializerAware {
     if (object == null) return null;
     if (object is AbstractProxy) object = object.target as T;
 
+    // Get or create circular reference tracker
+    _CircularReferenceTracker tracker;
+    if (context.extra.containsKey('_circularReferenceTracker')) {
+      tracker =
+          context.extra['_circularReferenceTracker']
+              as _CircularReferenceTracker;
+    } else {
+      tracker = _CircularReferenceTracker();
+      context = context.copyWith(
+        extra: {...context.extra, '_circularReferenceTracker': tracker},
+      );
+    }
+
     if (_metadataRegistry.hasEnumMetadata<T>(object.runtimeType)) {
       final metadata = _metadataRegistry.getEnumMetadata<T>(object.runtimeType);
       return _normalizeEnum(object, metadata, context);
@@ -177,6 +227,7 @@ class MetadataTransformer implements Transformer, SerializerAware {
           object,
           TypeMetadata<List>([classMeta.typeMetadata]),
           context,
+          tracker,
         );
       }
 
@@ -187,57 +238,140 @@ class MetadataTransformer implements Transformer, SerializerAware {
     }
 
     final metadata = _metadataRegistry.getClassMetadata<T>(object.runtimeType);
-    return _normalizeObject(object, metadata, context);
+    return _normalizeObject(object, metadata, context, tracker);
   }
 
   dynamic _normalizeObject<T>(
     T object,
     ClassMetadata metadata,
     SerializerContext context,
+    _CircularReferenceTracker tracker,
   ) {
     if (!metadata.hasMappedGetters) {
       throw SerializerException('Class $T has no mapped getters');
     }
 
-    // 1. Obtém cache PURO (sem filtros)
-    final cache = _cache.getPropertyCache(metadata);
+    // Check for circular reference
+    if (tracker.isVisited(object!)) {
+      // Handle circular reference based on context settings
+      final maxDepth = context.extra['maxDepth'] as int?;
+      final circularRefHandling =
+          context.extra['circularReferenceHandling'] as String? ?? 'reference';
 
-    // 2. Aplica filtros DINAMICAMENTE baseado no contexto ATUAL
-    final activeGetters = _cache.filterGetters(cache, context);
-
-    final result = <String, dynamic>{};
-
-    for (final getterMeta in activeGetters) {
-      var effectiveContext = context;
-
-      if (getterMeta.hasAnnotation<EnumDelimiter>()) {
-        effectiveContext = context.copyWith(
-          enumDelimiter: getterMeta
-              .firstAnnotationOf<EnumDelimiter>()!
-              .delimiter,
+      if (circularRefHandling == 'reference') {
+        // Return a reference object with the ID
+        final refId = tracker.getReferenceId(object);
+        return {'__ref': refId};
+      } else if (circularRefHandling == 'ignore') {
+        // Return null to ignore circular references
+        return null;
+      } else if (circularRefHandling == 'error') {
+        throw SerializerException(
+          'Circular reference detected for object of type ${object.runtimeType}',
         );
       }
+    }
 
-      final propertyAnnotation = getterMeta.firstAnnotationOf<Property>();
-      final value = getterMeta.getValue(object);
+    // Mark object as visited
+    tracker.markVisited(object);
 
-      if (value == null && context.omitNull) {
-        continue;
+    try {
+      // 1. Obtém cache PURO (sem filtros)
+      final cache = _cache.getPropertyCache(metadata);
+
+      // 2. Aplica filtros DINAMICAMENTE baseado no contexto ATUAL
+      final activeGetters = _cache.filterGetters(cache, context);
+
+      final result = <String, dynamic>{};
+
+      for (final getterMeta in activeGetters) {
+        var effectiveContext = context;
+
+        if (getterMeta.hasAnnotation<EnumDelimiter>()) {
+          effectiveContext = context.copyWith(
+            enumDelimiter: getterMeta
+                .firstAnnotationOf<EnumDelimiter>()!
+                .delimiter,
+          );
+        }
+
+        final propertyAnnotation = getterMeta.firstAnnotationOf<Property>();
+        final value = getterMeta.getValue(object);
+
+        if (value == null && context.omitNull) {
+          continue;
+        }
+
+        final propertyName = propertyAnnotation?.name ?? getterMeta.name;
+
+        if (value != null) {
+          final normalizedValue = getterMeta.typeMetadata.captureGeneric(
+            <S>() => _normalizeValue<S>(
+              value as S,
+              getterMeta.typeMetadata as TypeMetadata<S>,
+              effectiveContext,
+              tracker,
+            ),
+          );
+          result[propertyName] = normalizedValue;
+        } else {
+          result[propertyName] = null;
+        }
       }
 
-      final propertyName = propertyAnnotation?.name ?? getterMeta.name;
+      return result;
+    } finally {
+      // Unmark object when leaving this recursion level
+      tracker.unmark(object);
+    }
+  }
 
-      if (value != null) {
-        final normalizedValue = getterMeta.typeMetadata.captureGeneric(
+  dynamic _normalizeValue<T>(
+    T? value,
+    TypeMetadata<T> typeMetadata,
+    SerializerContext context,
+    _CircularReferenceTracker tracker,
+  ) {
+    if (value == null) return null;
+
+    if (typeMetadata.type == List && typeMetadata.typeArguments.isNotEmpty) {
+      return _normalizeList(value, typeMetadata, context, tracker);
+    }
+
+    return typeMetadata.captureGeneric(
+      <S>() => _serializer.normalize<S>(value as S, context),
+    );
+  }
+
+  dynamic _normalizeList<T>(
+    T list,
+    TypeMetadata<T> typeMetadata,
+    SerializerContext context,
+    _CircularReferenceTracker tracker,
+  ) {
+    if (list is! List) {
+      throw SerializerException(
+        'Expected List, got ${list.runtimeType}',
+      );
+    }
+
+    final itemType = typeMetadata.typeArguments.first;
+
+    final result = List<dynamic>.filled(list.length, null, growable: false);
+
+    for (var i = 0; i < list.length; i++) {
+      final item = list[i];
+      if (item != null) {
+        result[i] = itemType.captureGeneric(
           <S>() => _normalizeValue<S>(
-            value as S?,
-            getterMeta.typeMetadata,
-            effectiveContext,
+            item as S?,
+            itemType as TypeMetadata<S>,
+            context,
+            tracker,
           ),
         );
-        result[propertyName] = normalizedValue;
       } else {
-        result[propertyName] = null;
+        result[i] = null;
       }
     }
 
@@ -289,59 +423,12 @@ class MetadataTransformer implements Transformer, SerializerAware {
       return normalizedList.join(delimiter);
     }
 
-    return list
-        .map((item) => _normalizeEnum(item, enumMeta, context).toString())
-        .toList();
-  }
-
-  dynamic _normalizeValue<T>(
-    T? value,
-    TypeMetadata type,
-    SerializerContext context,
-  ) {
-    if (value == null) return null;
-
-    if (_primitiveTypes.contains(type.type)) {
-      return value;
-    }
-
-    if (type.type == List && type.typeArguments.isNotEmpty) {
-      return _normalizeList(value, type, context);
-    }
-
-    return _serializer.normalize<T>(value, context);
-  }
-
-  dynamic _normalizeList<T>(
-    T value,
-    TypeMetadata type,
-    SerializerContext context,
-  ) {
-    if (value is! List) {
-      throw SerializerException(
-        'Expected List for normalization, got ${value.runtimeType}',
-      );
-    }
-
-    final itemType = type.typeArguments.first;
-
-    return value.map((item) {
-      if (item == null) return null;
-      return itemType.captureGeneric(
-        <S>() => _normalizeValue<S>(
-          item as S?,
-          itemType as TypeMetadata<S>,
-          context,
-        ),
-      );
-    }).toList();
+    return list.map((item) => _normalizeEnum(item, enumMeta, context)).toList();
   }
 
   @override
   T denormalize<T>(dynamic data, SerializerContext context) {
-    if (data == null) {
-      throw SerializerException('Cannot denormalize null data');
-    }
+    if (data == null) return null as T;
 
     if (_metadataRegistry.hasEnumMetadata<T>()) {
       final metadata = _metadataRegistry.getEnumMetadata<T>();
@@ -352,15 +439,6 @@ class MetadataTransformer implements Transformer, SerializerAware {
       final enumMeta = _getEnumMetadataForList<T>();
       if (enumMeta != null) {
         return _denormalizeEnumList<T>(data, enumMeta, context);
-      }
-
-      final classMeta = _getClassMetadataForList<T>();
-      if (classMeta != null) {
-        return _denormalizeList(
-          data,
-          TypeMetadata<List>([classMeta.typeMetadata]),
-          context,
-        );
       }
     }
 
@@ -375,14 +453,14 @@ class MetadataTransformer implements Transformer, SerializerAware {
   ) {
     if (data is! Map) {
       throw SerializerException(
-        'Expected Map for denormalization, got ${data.runtimeType}',
+        'Expected Map for denormalization to ${metadata.typeMetadata.type}, got ${data.runtimeType}',
       );
     }
 
     final constructor = metadata.constructors?.firstOrNull;
     if (constructor == null) {
       throw SerializerException(
-        'No constructor found for class ${metadata.typeMetadata.type}',
+        'Class ${metadata.typeMetadata.type} has no mapped constructors',
       );
     }
 
@@ -481,7 +559,7 @@ class MetadataTransformer implements Transformer, SerializerAware {
   ) {
     if (value == null) return null;
 
-    if (targetType.type == List && targetType.typeArguments.isNotEmpty) {
+    if (targetType.isType<List>() && targetType.typeArguments.isNotEmpty) {
       return _denormalizeList(value, targetType, context);
     }
 

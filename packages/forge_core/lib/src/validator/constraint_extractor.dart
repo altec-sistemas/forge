@@ -31,7 +31,7 @@ class ConstraintExtractor {
   /// Builds a Collection constraint based on the class getters.
   Constraint _buildConstraintFromClass(ClassMetadata classMetadata) {
     if (!classMetadata.hasMappedGetters) {
-      return Collection({});
+      return Collection({}, allowExtraFields: true, allowMissingFields: false);
     }
 
     final fields = <String, Constraint>{};
@@ -45,7 +45,7 @@ class ConstraintExtractor {
 
     return Collection(
       fields,
-      allowExtraFields: false,
+      allowExtraFields: true,
       allowMissingFields: false,
     );
   }

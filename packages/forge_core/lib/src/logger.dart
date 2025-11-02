@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:path/path.dart' as path;
+import 'package:colorize/colorize.dart';
 
 /// Log level enumeration.
 enum LogLevel {
@@ -505,7 +508,7 @@ class ConsoleLogHandler extends LogHandler {
     // Error details
     if (entry.error != null) {
       final errorType = colored
-          ? '\x1B[33m[${entry.error.runtimeType}]\x1B[0m'
+          ? Colorize('[${entry.error.runtimeType}]').yellow().toString()
           : '[${entry.error.runtimeType}]';
       print('$errorType ${entry.error}');
     }
@@ -523,7 +526,7 @@ class ConsoleLogHandler extends LogHandler {
 
   String _formatTimestamp(DateTime timestamp) {
     final timeStr = '\n${timestamp.toLocal()}';
-    return colored ? '\x1B[90m$timeStr\x1B[0m' : timeStr; // Dark gray
+    return colored ? Colorize(timeStr).darkGray().toString() : timeStr;
   }
 
   String _formatLevel(LogLevel level) {
@@ -531,31 +534,31 @@ class ConsoleLogHandler extends LogHandler {
 
     if (!colored) return levelName;
 
-    final colorCode = switch (level) {
-      LogLevel.debug => '\x1B[34m', // Blue
-      LogLevel.info => '\x1B[32m', // Green
-      LogLevel.success => '\x1B[32m\x1B[1m', // Green Bold
-      LogLevel.warning => '\x1B[33m', // Yellow
-      LogLevel.error => '\x1B[31m\x1B[1m', // Red Bold
-      LogLevel.fatal => '\x1B[31m\x1B[1m', // Red Bold
-    };
+    final colorized = Colorize(levelName);
 
-    return '$colorCode$levelName\x1B[0m';
+    return switch (level) {
+      LogLevel.debug => colorized.blue().toString(),
+      LogLevel.info => colorized.cyan().toString(),
+      LogLevel.success => colorized.green().bold().toString(),
+      LogLevel.warning => colorized.yellow().toString(),
+      LogLevel.error => colorized.red().bold().toString(),
+      LogLevel.fatal => colorized.red().bold().toString(),
+    };
   }
 
   String _formatChannel(String channel) {
     final channelStr = '[$channel]';
-    return colored ? '\x1B[35m$channelStr\x1B[0m' : channelStr; // Magenta
+    return colored ? Colorize(channelStr).magenta().toString() : channelStr;
   }
 
   String _formatContext(String context) {
     final contextStr = '[$context]';
-    return colored ? '\x1B[36m$contextStr\x1B[0m' : contextStr; // Cyan
+    return colored ? Colorize(contextStr).cyan().toString() : contextStr;
   }
 
   String _formatExtra(Map<String, dynamic> extra) {
     final extraStr = extra.toString();
-    return colored ? '\x1B[90m$extraStr\x1B[0m' : extraStr; // Dark gray
+    return colored ? Colorize(extraStr).darkGray().toString() : extraStr;
   }
 
   void _printStackTrace(StackTrace stackTrace) {
@@ -564,30 +567,134 @@ class ConsoleLogHandler extends LogHandler {
       '',
     );
 
-    final formatted = colored ? '\x1B[90m$trace\x1B[0m' : trace;
+    final formatted = colored ? Colorize(trace).darkGray().toString() : trace;
     print(formatted);
   }
 }
 
-/// File log handler that writes to a file.
+/// Estratégia de organização dos arquivos de log
+enum LogFileStrategy {
+  /// Um único arquivo para todos os logs
+  single,
+
+  /// Um arquivo por canal (ex: auth.log, network.log)
+  byChannel,
+
+  /// Um arquivo por data (ex: 2025-10-29.log)
+  byDate,
+
+  /// Um arquivo por canal e data (ex: auth_2025-10-29.log)
+  byChannelAndDate,
+
+  /// Um arquivo por nível de log (ex: error.log, warning.log)
+  byLevel,
+
+  /// Um arquivo por canal e nível (ex: auth_error.log)
+  byChannelAndLevel,
+}
+
+/// Formato de timestamp nos nomes de arquivo
+enum DateFormat {
+  /// 2025-10-29
+  date,
+
+  /// 2025-10
+  yearMonth,
+
+  /// 2025-W44 (semana do ano)
+  week,
+
+  /// 2025-10-29_14-30-45
+  dateTime,
+}
+
+/// Estratégia de rotação de arquivos
+enum RotationStrategy {
+  /// Sem rotação
+  none,
+
+  /// Rotação por tamanho máximo
+  bySize,
+
+  /// Rotação diária (muda de arquivo a cada dia)
+  daily,
+
+  /// Rotação por ambos (tamanho OU tempo)
+  bySizeOrDaily,
+}
+
+/// Configuração do FileLogHandler
+class FileLogConfig {
+  /// Diretório base para os logs
+  final String baseDirectory;
+
+  /// Estratégia de organização dos arquivos
+  final LogFileStrategy strategy;
+
+  /// Formato de data nos nomes de arquivo
+  final DateFormat dateFormat;
+
+  /// Extensão dos arquivos (sem o ponto)
+  final String extension;
+
+  /// Estratégia de rotação
+  final RotationStrategy rotationStrategy;
+
+  /// Tamanho máximo do arquivo em bytes (para rotação por tamanho)
+  final int? maxFileSize;
+
+  /// Número máximo de arquivos a manter (0 = ilimitado)
+  final int maxFiles;
+
+  /// Criar subdiretórios por data (ex: logs/2025/10/29/)
+  final bool createDateDirectories;
+
+  /// Prefixo para nomes de arquivo
+  final String? filePrefix;
+
+  /// Sufixo para nomes de arquivo
+  final String? fileSuffix;
+
+  const FileLogConfig({
+    this.baseDirectory = 'logs',
+    this.strategy = LogFileStrategy.byChannelAndDate,
+    this.dateFormat = DateFormat.date,
+    this.extension = 'log',
+    this.rotationStrategy = RotationStrategy.daily,
+    this.maxFileSize = 10 * 1024 * 1024, // 10 MB
+    this.maxFiles = 30,
+    this.createDateDirectories = false,
+    this.filePrefix,
+    this.fileSuffix,
+  });
+}
+
+/// File log handler that writes to a file with advanced organization strategies.
 class FileLogHandler extends LogHandler {
-  final String filePath;
+  final FileLogConfig config;
   final bool includeTimestamp;
-  final StringBuffer _buffer = StringBuffer();
+  final Duration autoFlushInterval;
+
+  final Map<String, StringBuffer> _buffers = {};
+  final Map<String, File> _files = {};
+  final Map<String, DateTime> _lastRotationCheck = {};
   Timer? _flushTimer;
 
   FileLogHandler({
-    required this.filePath,
+    required this.config,
     super.minLevel,
     this.includeTimestamp = true,
-    Duration autoFlushInterval = const Duration(seconds: 5),
+    this.autoFlushInterval = const Duration(seconds: 5),
   }) {
-    // Auto flush periodically
     _flushTimer = Timer.periodic(autoFlushInterval, (_) => flush());
   }
 
   @override
   void handle(LogEntry entry) {
+    final filePath = _getFilePath(entry);
+    final buffer = _buffers.putIfAbsent(filePath, () => StringBuffer());
+
+    // Formata a linha do log
     final timestamp = includeTimestamp
         ? '${entry.timestamp.toIso8601String()} '
         : '';
@@ -598,42 +705,311 @@ class FileLogHandler extends LogHandler {
         '$timestamp[${entry.level.name.toUpperCase()}] '
         '[${entry.channelName}] $context${entry.message}\n';
 
-    _buffer.write(line);
+    buffer.write(line);
 
+    // Adiciona erro se existir
     if (entry.error != null) {
-      _buffer.write('  Error: ${entry.error}\n');
+      buffer.write('  Error: ${entry.error}\n');
     }
 
+    // Adiciona stack trace se existir
     if (entry.stackTrace != null) {
-      _buffer.write('  Stack trace:\n');
-      _buffer.write(
+      buffer.write('  Stack trace:\n');
+      buffer.write(
         '  ${entry.stackTrace.toString().replaceAll('\n', '\n  ')}\n',
       );
     }
 
+    // Adiciona campos extras se existirem
     if (entry.extra != null && entry.extra!.isNotEmpty) {
-      _buffer.write('  Extra: ${entry.extra}\n');
+      buffer.write('  Extra: ${entry.extra}\n');
+    }
+
+    // Verifica se precisa fazer rotação
+    _checkRotation(filePath, entry);
+  }
+
+  /// Verifica e executa rotação se necessário
+  void _checkRotation(String filePath, LogEntry entry) {
+    final now = entry.timestamp;
+    final lastCheck = _lastRotationCheck[filePath];
+
+    // Rotação diária
+    if (config.rotationStrategy == RotationStrategy.daily ||
+        config.rotationStrategy == RotationStrategy.bySizeOrDaily) {
+      if (lastCheck != null && !_isSameDay(lastCheck, now)) {
+        _rotateFile(filePath);
+        _lastRotationCheck[filePath] = now;
+        return;
+      }
+    }
+
+    // Rotação por tamanho
+    if (config.rotationStrategy == RotationStrategy.bySize ||
+        config.rotationStrategy == RotationStrategy.bySizeOrDaily) {
+      _checkAndRotateBySize(filePath);
+    }
+
+    // Atualiza último check
+    _lastRotationCheck[filePath] ??= now;
+  }
+
+  /// Verifica se duas datas são do mesmo dia
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  /// Gera o caminho do arquivo baseado na estratégia
+  String _getFilePath(LogEntry entry) {
+    final fileName = _getFileName(entry);
+
+    if (config.createDateDirectories) {
+      final now = entry.timestamp;
+      final dateDir = path.join(
+        config.baseDirectory,
+        now.year.toString(),
+        now.month.toString().padLeft(2, '0'),
+        now.day.toString().padLeft(2, '0'),
+      );
+      return path.join(dateDir, fileName);
+    }
+
+    return path.join(config.baseDirectory, fileName);
+  }
+
+  /// Gera o nome do arquivo baseado na estratégia
+  String _getFileName(LogEntry entry) {
+    final parts = <String>[];
+
+    // Adiciona prefixo
+    if (config.filePrefix != null) {
+      parts.add(config.filePrefix!);
+    }
+
+    // Adiciona componentes baseados na estratégia
+    switch (config.strategy) {
+      case LogFileStrategy.single:
+        parts.add('app');
+        break;
+
+      case LogFileStrategy.byChannel:
+        parts.add(entry.channelName);
+        break;
+
+      case LogFileStrategy.byDate:
+        parts.add(_formatDate(entry.timestamp));
+        break;
+
+      case LogFileStrategy.byChannelAndDate:
+        parts.add(entry.channelName);
+        parts.add(_formatDate(entry.timestamp));
+        break;
+
+      case LogFileStrategy.byLevel:
+        parts.add(entry.level.name);
+        break;
+
+      case LogFileStrategy.byChannelAndLevel:
+        parts.add(entry.channelName);
+        parts.add(entry.level.name);
+        break;
+    }
+
+    // Adiciona sufixo
+    if (config.fileSuffix != null) {
+      parts.add(config.fileSuffix!);
+    }
+
+    return '${parts.join('_')}.${config.extension}';
+  }
+
+  /// Formata a data de acordo com o formato configurado
+  String _formatDate(DateTime date) {
+    switch (config.dateFormat) {
+      case DateFormat.date:
+        return '${date.year}-${date.month.toString().padLeft(2, '0')}-'
+            '${date.day.toString().padLeft(2, '0')}';
+
+      case DateFormat.yearMonth:
+        return '${date.year}-${date.month.toString().padLeft(2, '0')}';
+
+      case DateFormat.week:
+        final weekNumber = _getWeekNumber(date);
+        return '${date.year}-W${weekNumber.toString().padLeft(2, '0')}';
+
+      case DateFormat.dateTime:
+        return '${date.year}-${date.month.toString().padLeft(2, '0')}-'
+            '${date.day.toString().padLeft(2, '0')}_'
+            '${date.hour.toString().padLeft(2, '0')}-'
+            '${date.minute.toString().padLeft(2, '0')}-'
+            '${date.second.toString().padLeft(2, '0')}';
+    }
+  }
+
+  /// Calcula o número da semana no ano (ISO 8601)
+  int _getWeekNumber(DateTime date) {
+    // Encontra a quinta-feira da semana
+    final thursday = date.add(Duration(days: 4 - date.weekday));
+    // Primeiro dia do ano
+    final firstDay = DateTime(thursday.year, 1, 1);
+    // Calcula a semana
+    final weekNumber = ((thursday.difference(firstDay).inDays) / 7).ceil();
+    return weekNumber;
+  }
+
+  /// Verifica e faz rotação por tamanho se necessário
+  void _checkAndRotateBySize(String filePath) {
+    if (config.maxFileSize == null) return;
+
+    final file = File(filePath);
+    if (!file.existsSync()) return;
+
+    final size = file.lengthSync();
+    if (size >= config.maxFileSize!) {
+      _rotateFile(filePath);
+    }
+  }
+
+  /// Faz a rotação de um arquivo
+  void _rotateFile(String filePath) {
+    final file = File(filePath);
+    if (!file.existsSync()) return;
+
+    // Primeiro, faz flush do buffer atual
+    final buffer = _buffers[filePath];
+    if (buffer != null && buffer.isNotEmpty) {
+      try {
+        file.writeAsStringSync(
+          buffer.toString(),
+          mode: FileMode.append,
+          flush: true,
+        );
+        buffer.clear();
+      } catch (e) {
+        print('Error flushing before rotation: $e');
+      }
+    }
+
+    // Gera nome para arquivo rotacionado
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final ext = path.extension(filePath);
+    final nameWithoutExt = path.basenameWithoutExtension(filePath);
+    final dir = path.dirname(filePath);
+    final rotatedName = '$nameWithoutExt.$timestamp$ext';
+    final rotatedPath = path.join(dir, rotatedName);
+
+    // Renomeia o arquivo
+    try {
+      file.renameSync(rotatedPath);
+    } catch (e) {
+      print('Error rotating file: $e');
+      return;
+    }
+
+    // Limpa o cache para este arquivo
+    _files.remove(filePath);
+
+    // Limpa arquivos antigos
+    _cleanOldFiles(dir);
+  }
+
+  /// Remove arquivos antigos baseado no maxFiles
+  void _cleanOldFiles(String directory) {
+    if (config.maxFiles <= 0) return;
+
+    try {
+      final dir = Directory(directory);
+      if (!dir.existsSync()) return;
+
+      // Lista todos os arquivos .log no diretório
+      final files = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.${config.extension}'))
+          .toList();
+
+      // Ordena por data de modificação (mais antigo primeiro)
+      files.sort((a, b) {
+        try {
+          return a.statSync().modified.compareTo(b.statSync().modified);
+        } catch (e) {
+          return 0;
+        }
+      });
+
+      // Remove arquivos excedentes
+      while (files.length > config.maxFiles) {
+        try {
+          files.first.deleteSync();
+          files.removeAt(0);
+        } catch (e) {
+          print('Error deleting old log file: $e');
+          break;
+        }
+      }
+    } catch (e) {
+      print('Error cleaning old files: $e');
     }
   }
 
   @override
   Future<void> flush() async {
-    if (_buffer.isEmpty) return;
+    final futures = <Future>[];
 
-    try {
-      // In a real implementation, write to actual file
-      // For now, just simulate
-      print('[FILE WRITE to $filePath] ${_buffer.length} bytes');
-      _buffer.clear();
-    } catch (e) {
-      print('Error flushing file handler: $e');
+    for (final entry in _buffers.entries) {
+      if (entry.value.isEmpty) continue;
+
+      futures.add(_flushBuffer(entry.key, entry.value));
     }
+
+    await Future.wait(futures);
+  }
+
+  /// Faz flush de um buffer específico
+  Future<void> _flushBuffer(String filePath, StringBuffer buffer) async {
+    try {
+      final file = await _getOrCreateFile(filePath);
+      await file.writeAsString(
+        buffer.toString(),
+        mode: FileMode.append,
+        flush: true,
+      );
+      buffer.clear();
+    } catch (e) {
+      print('Error flushing file handler ($filePath): $e');
+    }
+  }
+
+  /// Obtém ou cria o arquivo de log
+  Future<File> _getOrCreateFile(String filePath) async {
+    if (_files.containsKey(filePath)) {
+      return _files[filePath]!;
+    }
+
+    final file = File(filePath);
+
+    // Cria diretórios se necessário
+    final directory = file.parent;
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+
+    // Cria o arquivo se não existir
+    if (!await file.exists()) {
+      await file.create(recursive: true);
+    }
+
+    _files[filePath] = file;
+    return file;
   }
 
   @override
   Future<void> close() async {
     _flushTimer?.cancel();
     await flush();
+    _buffers.clear();
+    _files.clear();
+    _lastRotationCheck.clear();
   }
 }
 
