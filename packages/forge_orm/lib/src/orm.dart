@@ -1,6 +1,8 @@
 import 'package:forge_core/forge_core.dart';
+import '../forge_orm.dart';
+import 'entity_manager/entity_change_tracker.dart';
+import 'entity_manager/relationship_manager.dart';
 import 'metadata_schema_resolver.dart';
-import 'entity_manager.dart';
 import 'database.dart';
 import 'repository.dart';
 import 'builder/query_builder.dart';
@@ -100,6 +102,9 @@ abstract class Orm {
   /// columns, and relationships.
   MetadataSchemaResolver get schemaResolver;
 
+  /// Change tracking manager for monitoring entity changes.
+  ChangeTrackingManager get changeTracker;
+
   /// Returns a repository for the specified entity type.
   ///
   /// Repositories provide high-level methods for entity operations like
@@ -155,15 +160,20 @@ class OrmImpl implements Orm {
   @override
   late final EntityManager entityManager;
 
+  @override
+  late final ChangeTrackingManager changeTracker;
+
   OrmImpl({
     required this.database,
     required this.serializer,
     required this.schemaResolver,
   }) {
-    entityManager = EntityManagerImpl(
+    changeTracker = ChangeTrackingManager();
+    entityManager = EntityManager(
       database: database,
       serializer: serializer,
       schemaResolver: schemaResolver,
+      changeTracker: changeTracker,
     );
   }
 

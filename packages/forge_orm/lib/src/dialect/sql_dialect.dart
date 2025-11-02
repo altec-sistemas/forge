@@ -41,4 +41,6 @@ abstract class SqlDialect {
     String indexName, {
     bool unique = false,
   });
+
+  String formatComment(String comment);
 }

@@ -6,7 +6,6 @@ import '../repository.dart';
 import 'builder.dart';
 import '../metadata_schema_resolver.dart';
 
-/// Entity-specific query builder with eager loading support
 class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
   @internal
   final Repository<T> repository;
@@ -22,7 +21,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     from(repository.schema.tableName, alias);
   }
 
-  /// Eagerly loads a relationship
   EntityQueryBuilder<T> load(
     String relation, {
     String? alias,
@@ -46,7 +44,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     return this;
   }
 
-  /// Adds WHERE EXISTS condition for a relationship
   EntityQueryBuilder<T> whereHas(
     String relation, {
     String? alias,
@@ -62,7 +59,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     return this;
   }
 
-  /// Adds OR WHERE EXISTS condition for a relationship
   EntityQueryBuilder<T> orWhereHas(
     String relation, {
     String? alias,
@@ -78,7 +74,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     return this;
   }
 
-  /// Adds WHERE NOT EXISTS condition for a relationship
   EntityQueryBuilder<T> whereDoesntHave(
     String relation, {
     String? alias,
@@ -94,7 +89,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     return this;
   }
 
-  /// Adds OR WHERE NOT EXISTS condition for a relationship
   EntityQueryBuilder<T> orWhereDoesntHave(
     String relation, {
     String? alias,
@@ -134,26 +128,61 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
 
       final relation = relationInfo.relationAnnotation;
 
-      if (relationInfo.isInverse) {
-        final foreignKeyColumn = relatedSchema.getColumnName(
-          _findPropertyByColumn(relatedSchema, relation.foreignKey),
+      if (relationInfo.isManyToOne || relationInfo.isOneToOne) {
+        if (relationInfo.foreignKey == null) {
+          throw Exception(
+            'Foreign key not defined for relation "$relationName"',
+          );
+        }
+
+        final foreignKeyProperty = _findPropertyByColumn(
+          repository.schema,
+          relationInfo.foreignKey!,
         );
-        final localKeyColumn = repository.schema.getColumnName(
-          _findPropertyByColumn(repository.schema, relation.localKey),
+        final foreignKeyColumn = repository.schema.getColumnName(
+          foreignKeyProperty,
+        );
+
+        final relatedPkColumn = relatedSchema.getColumnName(
+          relatedSchema.primaryKey,
         );
 
         sub.where(
-          foreignKeyColumn,
+          relatedPkColumn,
           isEqualTo: col(
-            resolveColumn(localKeyColumn, useTablePrefix: true),
+            resolveColumn(foreignKeyColumn, useTablePrefix: true),
           ),
         );
-      } else {
-        final foreignKeyColumn = relatedSchema.getColumnName(
-          _findPropertyByColumn(relatedSchema, relation.foreignKey),
+      } else if (relationInfo.isOneToMany || relationInfo.isOneToOneInverse) {
+        if (relationInfo.mappedBy == null) {
+          throw Exception(
+            'mappedBy not defined for relation "$relationName"',
+          );
+        }
+
+        final owningRelation = relatedSchema.relations[relationInfo.mappedBy];
+        if (owningRelation == null) {
+          throw Exception(
+            'Owning relation "${relationInfo.mappedBy}" not found in ${relatedSchema.entityType}',
+          );
+        }
+
+        if (owningRelation.foreignKey == null) {
+          throw Exception(
+            'Foreign key not defined for owning relation "${relationInfo.mappedBy}"',
+          );
+        }
+
+        final foreignKeyProperty = _findPropertyByColumn(
+          relatedSchema,
+          owningRelation.foreignKey!,
         );
+        final foreignKeyColumn = relatedSchema.getColumnName(
+          foreignKeyProperty,
+        );
+
         final localKeyColumn = repository.schema.getColumnName(
-          _findPropertyByColumn(repository.schema, relation.localKey),
+          repository.schema.primaryKey,
         );
 
         sub.where(
@@ -198,20 +227,17 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     }
   }
 
-  /// Fetches all entities
   Future<List<T>> fetchAll() async {
     final result = await get();
     return deserializeResults(result);
   }
 
-  /// Fetches a single entity
   Future<T?> fetchOne() async {
     limit(1);
     final entities = await fetchAll();
     return entities.isEmpty ? null : entities.first;
   }
 
-  /// Fetches a single entity or throws exception
   Future<T> fetchOneOrFail() async {
     final entity = await fetchOne();
     if (entity == null) {
@@ -220,7 +246,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     return entity;
   }
 
-  /// Paginates results
   Future<Pagination<T>> paginate(int page, int perPage) async {
     if (page <= 0) {
       throw ArgumentError('Page must be greater than 0');
@@ -244,37 +269,8 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     );
   }
 
-  /// Counts records
-  Future<int> count() async {
-    final originalColumns = List<String>.from(selectedColumns);
-    final originalLimit = limitValue;
-    final originalOffset = offsetValue;
-
-    selectedColumns.clear();
-    selectedColumns.add('COUNT(*) as count');
-    limitValue = null;
-    offsetValue = null;
-
-    final result = await super.get();
-
-    selectedColumns.clear();
-    selectedColumns.addAll(originalColumns);
-    limitValue = originalLimit;
-    offsetValue = originalOffset;
-
-    if (result.isEmpty) return 0;
-
-    final countValue = result.first['count'];
-    if (countValue is int) return countValue;
-    if (countValue is String) return int.parse(countValue);
-
-    return 0;
-  }
-
-  @internal
   List<T> deserializeResults(List<Map<String, dynamic>> rows) {
     if (rows.isEmpty) return [];
-
     return rows.map((row) {
       final propertyData = _convertColumnNamesToProperties(row);
       final entity = orm.serializer.denormalize<T>(propertyData);
@@ -282,16 +278,16 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     }).toList();
   }
 
-  /// Converts database column names to property names
   Map<String, dynamic> _convertColumnNamesToProperties(
     Map<String, dynamic> row,
   ) {
     final result = <String, dynamic>{};
+    final schema = repository.schema;
 
     for (final entry in row.entries) {
       String? propertyName;
 
-      for (final column in repository.schema.columns.values) {
+      for (final column in schema.columns.values) {
         if (column.columnName == entry.key) {
           propertyName = column.propertyName;
           break;
@@ -299,28 +295,26 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
       }
 
       propertyName ??= entry.key;
-
       result[propertyName] = entry.value;
     }
 
     return result;
   }
 
-  /// Eagerly loads relationships
-  @internal
   Future<void> loadRelations(List<Map<String, dynamic>> parentMaps) async {
-    for (final eagerLoad in eagerLoads.values) {
+    if (parentMaps.isEmpty) return;
+
+    for (final entry in eagerLoads.entries) {
+      final relationName = entry.key;
+      final eagerLoad = entry.value;
       final relationInfo = eagerLoad.relationInfo;
 
       final parentIds = _extractParentIds(parentMaps, relationInfo);
+
       if (parentIds.isEmpty) continue;
 
-      final relatedSchema = orm.schemaResolver.resolveByType(
-        relationInfo.relatedType,
-      );
-
       final relatedQuery = _createRelatedQueryBuilder(
-        relatedSchema,
+        orm.schemaResolver.resolveByType(relationInfo.relatedType),
         eagerLoad.alias,
       );
 
@@ -330,29 +324,33 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
         eagerLoad.builder!(relatedQuery);
       }
 
-      final relatedMaps = await relatedQuery.get();
+      final relatedRows = await relatedQuery.get();
 
       _attachRelatedToParents(
         parentMaps,
-        relatedMaps,
+        relatedRows,
         relationInfo,
-        eagerLoad.name,
+        relationName,
       );
     }
   }
 
-  /// Extracts parent IDs to load relationships
   List<Object> _extractParentIds(
     List<Map<String, dynamic>> parentMaps,
     RelationInfo relationInfo,
   ) {
-    final relation = relationInfo.relationAnnotation;
     final schema = repository.schema;
 
-    if (relationInfo.isInverse) {
-      final localKeyProperty = _findPropertyByColumn(schema, relation.localKey);
+    if (relationInfo.isManyToOne || relationInfo.isOneToOne) {
+      if (relationInfo.foreignKey == null) return [];
+
+      final foreignKeyProperty = _findPropertyByColumn(
+        schema,
+        relationInfo.foreignKey!,
+      );
+
       return parentMaps
-          .map((parent) => parent[localKeyProperty])
+          .map((parent) => parent[foreignKeyProperty])
           .whereType<Object>()
           .toSet()
           .toList();
@@ -365,7 +363,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     }
   }
 
-  /// Builds query for eager loading
   void _buildEagerLoadQuery(
     EntityQueryBuilder relatedQuery,
     RelationInfo relationInfo,
@@ -376,17 +373,26 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
       relationInfo.relatedType,
     );
 
-    if (relationInfo.isInverse) {
+    if (relationInfo.isManyToOne || relationInfo.isOneToOne) {
+      final pkColumn = relatedSchema.getColumnName(relatedSchema.primaryKey);
+      relatedQuery.whereIn(pkColumn, parentIds);
+    } else if (relationInfo.isOneToMany || relationInfo.isOneToOneInverse) {
+      if (relationInfo.mappedBy == null) {
+        throw Exception(
+          'mappedBy not defined for relation',
+        );
+      }
+
+      final owningRelation = relatedSchema.relations[relationInfo.mappedBy];
+      if (owningRelation == null || owningRelation.foreignKey == null) {
+        throw Exception(
+          'Invalid owning relation "${relationInfo.mappedBy}"',
+        );
+      }
+
       final foreignKeyProperty = _findPropertyByColumn(
         relatedSchema,
-        relation.foreignKey,
-      );
-      final foreignKeyColumn = relatedSchema.getColumnName(foreignKeyProperty);
-      relatedQuery.whereIn(foreignKeyColumn, parentIds);
-    } else {
-      final foreignKeyProperty = _findPropertyByColumn(
-        relatedSchema,
-        relation.foreignKey,
+        owningRelation.foreignKey!,
       );
       final foreignKeyColumn = relatedSchema.getColumnName(foreignKeyProperty);
       relatedQuery.whereIn(foreignKeyColumn, parentIds);
@@ -406,14 +412,12 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     }
   }
 
-  /// Attaches related entities to parents
   void _attachRelatedToParents(
     List<Map<String, dynamic>> parentMaps,
     List<Map<String, dynamic>> relatedMaps,
     RelationInfo relationInfo,
     String relationName,
   ) {
-    final relation = relationInfo.relationAnnotation;
     final schema = repository.schema;
     final relatedSchema = orm.schemaResolver.resolveByType(
       relationInfo.relatedType,
@@ -423,10 +427,15 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
       return _convertColumnNamesToPropertiesForSchema(map, relatedSchema);
     }).toList();
 
-    if (relationInfo.type == RelationType.hasMany) {
+    if (relationInfo.isOneToMany) {
+      if (relationInfo.mappedBy == null) return;
+
+      final owningRelation = relatedSchema.relations[relationInfo.mappedBy];
+      if (owningRelation == null || owningRelation.foreignKey == null) return;
+
       final foreignKeyProperty = _findPropertyByColumn(
         relatedSchema,
-        relation.foreignKey,
+        owningRelation.foreignKey!,
       );
 
       final relatedByForeignKey = <dynamic, List<Map<String, dynamic>>>{};
@@ -441,43 +450,52 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
         final parentId = parent[schema.primaryKey];
         parent[relationName] = relatedByForeignKey[parentId] ?? [];
       }
-    } else if (relationInfo.isInverse) {
-      final foreignKeyProperty = _findPropertyByColumn(
-        relatedSchema,
-        relation.foreignKey,
-      );
-      final localKeyProperty = _findPropertyByColumn(schema, relation.localKey);
+    } else if (relationInfo.isManyToOne ||
+        relationInfo.isOneToOne ||
+        relationInfo.isOneToOneInverse) {
+      if (relationInfo.isManyToOne || relationInfo.isOneToOne) {
+        if (relationInfo.foreignKey == null) return;
 
-      final relatedByPk = {
-        for (final related in convertedRelatedMaps)
-          if (related[foreignKeyProperty] != null)
-            related[foreignKeyProperty]: related,
-      };
+        final foreignKeyProperty = _findPropertyByColumn(
+          schema,
+          relationInfo.foreignKey!,
+        );
 
-      for (final parent in parentMaps) {
-        final fk = parent[localKeyProperty];
-        parent[relationName] = relatedByPk[fk];
-      }
-    } else {
-      final foreignKeyProperty = _findPropertyByColumn(
-        relatedSchema,
-        relation.foreignKey,
-      );
+        final relatedByPk = {
+          for (final related in convertedRelatedMaps)
+            if (related[relatedSchema.primaryKey] != null)
+              related[relatedSchema.primaryKey]: related,
+        };
 
-      final relatedByForeignKey = {
-        for (final related in convertedRelatedMaps)
-          if (related[foreignKeyProperty] != null)
-            related[foreignKeyProperty]: related,
-      };
+        for (final parent in parentMaps) {
+          final fk = parent[foreignKeyProperty];
+          parent[relationName] = relatedByPk[fk];
+        }
+      } else {
+        if (relationInfo.mappedBy == null) return;
 
-      for (final parent in parentMaps) {
-        final parentId = parent[schema.primaryKey];
-        parent[relationName] = relatedByForeignKey[parentId];
+        final owningRelation = relatedSchema.relations[relationInfo.mappedBy];
+        if (owningRelation == null || owningRelation.foreignKey == null) return;
+
+        final foreignKeyProperty = _findPropertyByColumn(
+          relatedSchema,
+          owningRelation.foreignKey!,
+        );
+
+        final relatedByForeignKey = {
+          for (final related in convertedRelatedMaps)
+            if (related[foreignKeyProperty] != null)
+              related[foreignKeyProperty]: related,
+        };
+
+        for (final parent in parentMaps) {
+          final parentId = parent[schema.primaryKey];
+          parent[relationName] = relatedByForeignKey[parentId];
+        }
       }
     }
   }
 
-  /// Converts column names to properties for a specific schema
   Map<String, dynamic> _convertColumnNamesToPropertiesForSchema(
     Map<String, dynamic> row,
     ResolvedEntitySchema schema,
@@ -501,7 +519,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     return result;
   }
 
-  /// Finds property name by column name
   String _findPropertyByColumn(ResolvedEntitySchema schema, String columnName) {
     for (final column in schema.columns.values) {
       if (column.columnName == columnName ||
@@ -512,7 +529,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
     return columnName;
   }
 
-  /// Creates query builder for related entity
   EntityQueryBuilder _createRelatedQueryBuilder(
     ResolvedEntitySchema schema,
     String? alias,
@@ -526,8 +542,8 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
   @internal
   T asProxy(T entity) {
     final metadata = orm.schemaResolver.resolve<T>().classMetadata;
-    return metadata.createProxy!(entity as Object, ProxyHandler(), metadata)
-        as T;
+
+    return orm.changeTracker.createTrackedProxy(entity, metadata);
   }
 
   @override
@@ -556,7 +572,6 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
   EntityQueryBuilder<T> get self => this;
 }
 
-/// Eager loading information
 class EagerLoad {
   final RelationInfo relationInfo;
   final String name;
@@ -571,7 +586,6 @@ class EagerLoad {
   });
 }
 
-/// Result pagination
 class Pagination<T> {
   final List<T> data;
   final int currentPage;

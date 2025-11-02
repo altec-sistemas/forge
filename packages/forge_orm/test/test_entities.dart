@@ -2,7 +2,6 @@ import 'package:forge_core/forge_core.dart';
 import 'package:forge_orm/forge_orm.dart';
 
 @Entity('users')
-@Mappable()
 class User {
   @Column.id()
   int? id;
@@ -22,18 +21,20 @@ class User {
   @Column.dateTime(dateTimeRole: DateTimeRole.updatedAt, nullable: true)
   DateTime? updatedAt;
 
-  @Relation.hasOne(
-    foreignKey: 'userId',
-    cascade: [CascadeOption.persist, CascadeOption.remove],
+  @OneToOne(
+    mappedBy: 'user',
+    cascade: {CascadeOption.persist, CascadeOption.remove},
   )
   Profile? profile;
 
-  @Relation.hasMany(foreignKey: 'userId', cascade: [CascadeOption.persist])
+  @OneToMany(
+    mappedBy: 'user',
+    cascade: {CascadeOption.persist},
+  )
   List<Post>? posts;
 }
 
 @Entity('profiles')
-@Mappable()
 class Profile {
   @Column.id()
   int? id;
@@ -47,12 +48,12 @@ class Profile {
   @Column.varchar(nullable: true)
   String? website;
 
-  @Relation.belongsTo(foreignKey: 'id', localKey: 'userId')
+  @OneToOne(inversedBy: 'profile')
+  @JoinColumn(name: 'userId', referencedColumnName: 'id')
   User? user;
 }
 
 @Entity('posts')
-@Mappable()
 class Post {
   @Column.id()
   int? id;
@@ -72,22 +73,18 @@ class Post {
   @Column.dateTime(nullable: true)
   DateTime? publishedAt;
 
-  @Relation.belongsTo(
-    foreignKey: 'id',
-    localKey: 'userId',
-    cascade: [CascadeOption.persist],
-  )
+  @ManyToOne(inversedBy: 'posts', cascade: {CascadeOption.persist})
+  @JoinColumn(name: 'userId', referencedColumnName: 'id')
   User? user;
 
-  @Relation.hasMany(
-    foreignKey: 'postId',
-    cascade: [CascadeOption.persist, CascadeOption.remove],
+  @OneToMany(
+    mappedBy: 'post',
+    cascade: {CascadeOption.persist, CascadeOption.remove},
   )
   List<Comment>? comments;
 }
 
 @Entity('comments')
-@Mappable()
 class Comment {
   @Column.id()
   int? id;
@@ -104,12 +101,12 @@ class Comment {
   @Column.dateTime(nullable: true)
   DateTime? createdAt;
 
-  @Relation.belongsTo(foreignKey: 'id', localKey: 'postId')
+  @ManyToOne(inversedBy: 'comments')
+  @JoinColumn(name: 'postId', referencedColumnName: 'id')
   Post? post;
 }
 
 @Entity('categories')
-@Mappable()
 class Category {
   @Column.id()
   int? id;
@@ -122,7 +119,6 @@ class Category {
 }
 
 @Entity('post_categories')
-@Mappable()
 class PostCategory {
   @Column.id()
   int? id;

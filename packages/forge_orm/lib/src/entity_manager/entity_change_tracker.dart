@@ -12,9 +12,9 @@ class EntityChangeTracker {
     required Object originalEntity,
     required Object proxyEntity,
     required ClassMetadata metadata,
-  }) : _originalEntity = originalEntity,
-       _proxyEntity = proxyEntity,
-       _metadata = metadata;
+  })  : _originalEntity = originalEntity,
+        _proxyEntity = proxyEntity,
+        _metadata = metadata;
 
   Object get entity => _proxyEntity;
   Object get originalEntity => _originalEntity;
@@ -49,13 +49,13 @@ class EntityChangeTracker {
 /// Change tracking manager for entities
 class ChangeTrackingManager {
   final Map<Object, EntityChangeTracker> _trackers = {};
+  
+  // Callback para RelationshipManager - será definido pelo EntityManager
+  void Function(Object entity, String propertyName, dynamic newValue)? 
+      onRelationshipChange;
 
   /// Creates a trackable proxy for an entity
-  Object createTrackedProxy<T>(T entity, ClassMetadata metadata) {
-    if (_trackers.containsKey(entity)) {
-      return _trackers[entity]!.entity;
-    }
-
+  T createTrackedProxy<T>(T entity, ClassMetadata metadata) {
     if (metadata.createProxy == null) {
       return entity!;
     }
@@ -66,6 +66,12 @@ class ChangeTrackingManager {
         if (tracker != null) {
           tracker.markChanged(setterName, value);
         }
+        
+        // Notify relationship manager if this is a relationship property
+        if (onRelationshipChange != null) {
+          onRelationshipChange!(entity!, setterName, value);
+        }
+        
         return null;
       },
     );
@@ -78,7 +84,7 @@ class ChangeTrackingManager {
       metadata: metadata,
     );
 
-    return proxy;
+    return proxy as T;
   }
 
   /// Gets the tracker for an entity
@@ -120,5 +126,24 @@ class ChangeTrackingManager {
   bool hasChanges(Object entity) {
     final tracker = _trackers[entity];
     return tracker?.hasChanges ?? false;
+  }
+
+  /// Resets the change tracking for an entity (keeps the tracker active)
+  ///
+  /// This method clears all tracked changes but keeps the entity in the tracking system.
+  /// Useful after flush operations to start tracking new changes.
+  void resetTracking(Object entity) {
+    final tracker = _trackers[entity];
+    if (tracker != null) {
+      tracker.reset();
+    }
+  }
+
+  /// Stops tracking an entity completely (removes from tracking system)
+  ///
+  /// This is an alias for [untrack]. Use this when you want to completely
+  /// remove an entity from the tracking system, typically after deletion.
+  void stopTracking(Object entity) {
+    untrack(entity);
   }
 }

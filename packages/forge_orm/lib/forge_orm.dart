@@ -8,7 +8,7 @@ export 'src/builder/entity_query_builder.dart';
 export 'src/builder/query_builder.dart';
 export 'src/orm.dart';
 export 'src/database.dart';
-export 'src/entity_manager.dart';
+export 'src/entity_manager/entity_manager.dart';
 export 'src/annotations.dart';
 export 'src/repository.dart';
 export 'src/orm_bundle.dart';

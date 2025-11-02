@@ -24,24 +24,50 @@ class RelationInfo<T> {
   final String relationName;
   final Relation<T> relationAnnotation;
   final Type relatedType;
+  final JoinColumn? joinColumn;
 
   RelationInfo({
     required this.propertyName,
     required this.relationName,
     required this.relationAnnotation,
     required this.relatedType,
+    this.joinColumn,
   });
 
-  RelationType get type => relationAnnotation.type;
-  String get foreignKey => relationAnnotation.foreignKey;
-  String get localKey => relationAnnotation.localKey;
-  List<CascadeOption> get cascade => relationAnnotation.cascade;
+  String? get foreignKey => joinColumn?.name;
+  String? get localKey => joinColumn?.referencedColumnName;
+  Set<CascadeOption> get cascade => relationAnnotation.cascade;
   bool get hasCascadePersist => relationAnnotation.hasCascadePersist;
   bool get hasCascadeRemove => relationAnnotation.hasCascadeRemove;
 
-  bool get isInverse =>
-      type == RelationType.belongsTo ||
-      type == RelationType.conditionalBelongsTo;
+  String? get mappedBy {
+    if (relationAnnotation is OneToMany) {
+      return (relationAnnotation as OneToMany).mappedBy;
+    }
+    if (relationAnnotation is OneToOne) {
+      return (relationAnnotation as OneToOne).mappedBy;
+    }
+    return null;
+  }
+
+  String? get inversedBy {
+    if (relationAnnotation is ManyToOne) {
+      return (relationAnnotation as ManyToOne).inversedBy;
+    }
+    if (relationAnnotation is OneToOne) {
+      return (relationAnnotation as OneToOne).inversedBy;
+    }
+    return null;
+  }
+
+  bool get isManyToOne => relationAnnotation is ManyToOne;
+  bool get isOneToMany => relationAnnotation is OneToMany;
+  bool get isOneToOne =>
+      (relationAnnotation is OneToOne) &&
+      (relationAnnotation as OneToOne).mappedBy == null;
+  bool get isOneToOneInverse =>
+      relationAnnotation is OneToOne &&
+      (relationAnnotation as OneToOne).mappedBy != null;
 }
 
 class ResolvedEntitySchema<T> with GenericCaller<T> {
@@ -246,8 +272,22 @@ class MetadataSchemaResolver {
     }
 
     for (final getter in classMetadata.getters!) {
-      final relationAnnotation = getter.firstAnnotationOf<Relation>();
+      final manyToOneAnnotation = getter.firstAnnotationOf<ManyToOne>();
+      final oneToManyAnnotation = getter.firstAnnotationOf<OneToMany>();
+      final oneToOneAnnotation = getter.firstAnnotationOf<OneToOne>();
+
+      Relation? relationAnnotation;
+      if (manyToOneAnnotation != null) {
+        relationAnnotation = manyToOneAnnotation;
+      } else if (oneToManyAnnotation != null) {
+        relationAnnotation = oneToManyAnnotation;
+      } else if (oneToOneAnnotation != null) {
+        relationAnnotation = oneToOneAnnotation;
+      }
+
       if (relationAnnotation == null) continue;
+
+      final joinColumn = getter.firstAnnotationOf<JoinColumn>();
 
       final propertyName = getter.name;
       final relationName = relationAnnotation.name ?? propertyName;
@@ -258,6 +298,7 @@ class MetadataSchemaResolver {
         relationName: relationName,
         relationAnnotation: relationAnnotation,
         relatedType: relatedType,
+        joinColumn: joinColumn,
       );
     }
 

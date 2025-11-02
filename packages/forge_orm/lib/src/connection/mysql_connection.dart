@@ -34,10 +34,12 @@ class MySQLDatabase implements Database {
         port: port,
         userName: username,
         password: password,
-        databaseName: database,
         secure: secure,
       );
+
       await _connection!.connect();
+      await _connection!.execute('CREATE DATABASE IF NOT EXISTS `$database`');
+      await _connection!.execute('USE `$database`');
     }
   }
 
@@ -126,13 +128,23 @@ class MySQLConnection implements Connection {
   Future<T> transaction<T>(
     Future<T> Function(Connection connection) callback,
   ) async {
-    await _connection.execute(_dialect.getTransactionBegin());
+    // Inicia transação explicitamente
+    await execute('START TRANSACTION');
+
     try {
-      final result = await callback(this);
-      await _connection.execute(_dialect.getTransactionCommit());
+      // Cria uma nova conexão wrapper para a transação
+      final transactionConnection = MySQLConnection(_connection, _dialect);
+
+      // Executa o callback
+      final result = await callback(transactionConnection);
+
+      // Commit explícito
+      await execute('COMMIT');
+
       return result;
     } catch (e) {
-      await _connection.execute(_dialect.getTransactionRollback());
+      // Rollback em caso de erro
+      await execute('ROLLBACK');
       rethrow;
     }
   }

@@ -139,4 +139,10 @@ class MySqlDialect implements SqlDialect {
     final uniqueKeyword = unique ? 'UNIQUE' : '';
     return 'CREATE $uniqueKeyword INDEX $indexName ON $tableName ($columnName)';
   }
+
+  @override
+  String formatComment(String comment) {
+    final escapedComment = comment.replaceAll("'", "''");
+    return "COMMENT '$escapedComment'";
+  }
 }

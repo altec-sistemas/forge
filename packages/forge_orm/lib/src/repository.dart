@@ -108,59 +108,6 @@ abstract class Repository<T> {
     );
     return results.isEmpty ? null : results.first;
   }
-
-  /// Counts the number of entities
-  Future<int> count([Map<String, dynamic>? criteria]) async {
-    final builder = createQueryBuilder();
-
-    if (criteria != null) {
-      for (final entry in criteria.entries) {
-        final propertyName = entry.key;
-        final value = entry.value;
-
-        if (schema.isColumn(propertyName)) {
-          final columnName = schema.getColumnName(propertyName);
-          builder.where(columnName, isEqualTo: value);
-        }
-      }
-    }
-
-    final result = await builder.count();
-    return result;
-  }
-
-  /// Checks if an entity exists with the ID
-  Future<bool> exists(dynamic id) async {
-    final pkColumnName = schema.primaryKeyColumn.columnName;
-
-    final builder = createQueryBuilder();
-    builder.where(pkColumnName, isEqualTo: id);
-
-    final count = await builder.count();
-    return count > 0;
-  }
-
-  /// Persists an entity (insert or update)
-  void persist(T entity) {
-    orm.entityManager.persist<T>(entity);
-  }
-
-  /// Removes an entity
-  void remove(T entity) {
-    orm.entityManager.remove<T>(entity);
-  }
-
-  /// Immediately saves an entity (persist + flush)
-  Future<void> save(T entity) async {
-    persist(entity);
-    await orm.entityManager.flush();
-  }
-
-  /// Immediately deletes an entity (remove + flush)
-  Future<void> delete(T entity) async {
-    remove(entity);
-    await orm.entityManager.flush();
-  }
 }
 
 /// Generic implementation of Repository

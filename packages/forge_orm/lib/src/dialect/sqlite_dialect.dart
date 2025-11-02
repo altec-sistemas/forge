@@ -125,4 +125,10 @@ class SqliteDialect implements SqlDialect {
     final uniqueKeyword = unique ? 'UNIQUE' : '';
     return 'CREATE $uniqueKeyword INDEX IF NOT EXISTS $indexName ON $tableName ($columnName)';
   }
+
+  @override
+  String formatComment(String comment) {
+    // SQLite não suporta comentários nativamente, retorna string vazia
+    return '';
+  }
 }

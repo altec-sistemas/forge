@@ -5,32 +5,32 @@
 import 'package:forge_core/forge_core.dart';
 import 'package:forge_core/metadata_compact_api.dart' as meta;
 
-import 'config/orm_config.dart' as prefix5;
-import 'controller/users_controller.dart' as prefix3;
-import 'dart:async' as prefix10;
-import 'entity/user.dart' as prefix6;
+import 'config/orm_config.dart' as prefix4;
+import 'controller/users_controller.dart' as prefix2;
+import 'dart:async' as prefix9;
+import 'entity/user.dart' as prefix5;
 import 'package:forge_framework/forge_framework.dart' as prefix0;
 import 'package:forge_orm/forge_orm.dart' as prefix1;
-import 'subscribers/exception_subscriber.dart' as prefix4;
+import 'subscribers/exception_subscriber.dart' as prefix3;
 
 abstract class AbstractAppBundle implements Bundle {
   @override
   Future<void> build(InjectorBuilder builder, String env) async {
     // Register services
-    builder.registerSingleton<prefix3.UsersController>((i) => prefix3.UsersController(i<prefix1.Orm>()));
-    builder.registerFactory<prefix4.ExceptionSubscriber>((i) => prefix4.ExceptionSubscriber());
+    builder.registerSingleton<prefix2.UsersController>((i) => prefix2.UsersController(i<prefix1.Orm>()));
+    builder.registerFactory<prefix3.ExceptionSubscriber>((i) => prefix3.ExceptionSubscriber());
     // Register modules
-    builder.registerSingleton<prefix5.OrmConfig>((i) => prefix5.OrmConfig());
-    builder.registerFactory<prefix1.DatabaseConfig>((i) => i<prefix5.OrmConfig>().databaseConfig);
+    builder.registerSingleton<prefix4.OrmConfig>((i) => prefix4.OrmConfig());
+    builder.registerFactory<prefix1.DatabaseConfig>((i) => i<prefix4.OrmConfig>().databaseConfig);
   }
 
   @override
   Future<void> buildMetadata(MetadataRegistryBuilder metaBuilder, String env) async {
-    metaBuilder.registerClass<prefix6.User>(
+    metaBuilder.registerClass<prefix5.User>(
       meta.clazz(
-        meta.type<prefix6.User>(),
+        meta.type<prefix5.User>(),
         const <Object>[prefix0.Mappable(), prefix1.Entity('users')],
-        [meta.constructor(() => prefix6.User.new, [], 'new', const [])],
+        [meta.constructor(() => prefix5.User.new, [], 'new', const [])],
         null, // methods
         [
           meta.getter(meta.type<int>([], true), 'id', (instance) => instance.id, const <Object>[prefix1.Column.id()]),
@@ -42,21 +42,21 @@ abstract class AbstractAppBundle implements Bundle {
           meta.setter(meta.type<String>([], true), 'name', (instance, value) => instance.name = value, const <Object>[prefix1.Column.varchar()]),
           meta.setter(meta.type<String>([], true), 'email', (instance, value) => instance.email = value, const <Object>[prefix1.Column.varchar(unique: true)]),
         ],
-        (target, handler, metadata) => _prefix6UserProxy._(target, handler, metadata),
+        (target, handler, metadata) => _prefix5UserProxy._(target, handler, metadata),
       ),
     );
 
-    metaBuilder.registerClass<prefix3.UsersController>(
+    metaBuilder.registerClass<prefix2.UsersController>(
       meta.clazz(
-        meta.type<prefix3.UsersController>(),
+        meta.type<prefix2.UsersController>(),
         const <Object>[prefix0.Controller(prefix: '/users')],
         [
-          meta.constructor(() => prefix3.UsersController.new, [meta.parameter(meta.type<prefix1.Orm>(), 'orm', 0, false, false, null, const [])], 'new', const []),
+          meta.constructor(() => prefix2.UsersController.new, [meta.parameter(meta.type<prefix1.Orm>(), 'orm', 0, false, false, null, const [])], 'new', const []),
         ],
         [
           meta.method(
-            meta.type<prefix10.Future<List<prefix6.User>>>([
-              meta.type<List<prefix6.User>>([meta.type<prefix6.User>()]),
+            meta.type<prefix9.Future<List<prefix5.User>>>([
+              meta.type<List<prefix5.User>>([meta.type<prefix5.User>()]),
             ]),
             'getUsers',
             (instance) => instance.getUsers,
@@ -64,11 +64,11 @@ abstract class AbstractAppBundle implements Bundle {
             const <Object>[prefix0.Route.get()],
           ),
           meta.method(
-            meta.type<prefix10.Future<prefix6.User>>([meta.type<prefix6.User>()]),
+            meta.type<prefix9.Future<prefix5.User>>([meta.type<prefix5.User>()]),
             'createUser',
             (instance) => instance.createUser,
             [
-              meta.parameter(meta.type<prefix3.CreateUserRequest>(), 'request', 0, false, false, null, const <Object>[prefix0.MapRequestQuery()]),
+              meta.parameter(meta.type<prefix2.CreateUserRequest>(), 'request', 0, false, false, null, const <Object>[prefix0.MapRequestQuery()]),
               meta.parameter(meta.type<prefix1.EntityManager>(), 'em', 1, false, false, null, const <Object>[prefix0.Inject()]),
             ],
             const <Object>[prefix0.Route.get('/create')],
@@ -80,12 +80,12 @@ abstract class AbstractAppBundle implements Bundle {
       ),
     );
 
-    metaBuilder.registerClass<prefix3.CreateUserRequest>(
+    metaBuilder.registerClass<prefix2.CreateUserRequest>(
       meta.clazz(
-        meta.type<prefix3.CreateUserRequest>(),
+        meta.type<prefix2.CreateUserRequest>(),
         const <Object>[prefix0.Mappable()],
         [
-          meta.constructor(() => prefix3.CreateUserRequest.new, [meta.parameter(meta.type<String>(), 'name', 0, false, false, null, const []), meta.parameter(meta.type<String>(), 'email', 1, false, false, null, const [])], 'new', const []),
+          meta.constructor(() => prefix2.CreateUserRequest.new, [meta.parameter(meta.type<String>(), 'name', 0, false, false, null, const []), meta.parameter(meta.type<String>(), 'email', 1, false, false, null, const [])], 'new', const []),
         ],
         null, // methods
         [
@@ -101,10 +101,10 @@ abstract class AbstractAppBundle implements Bundle {
   @override
   Future<void> boot(Injector i) async {
     // Execute boot methods
-    await i<prefix5.OrmConfig>().initializeOrm(i<prefix1.Database>(), i<prefix1.MetadataSchemaResolver>(), i<prefix0.Logger>());
+    await i<prefix4.OrmConfig>().initializeOrm(i<prefix1.Database>(), i<prefix1.MetadataSchemaResolver>(), i<prefix0.Logger>());
   }
 }
 
-class _prefix6UserProxy extends AbstractProxy implements prefix6.User {
-  _prefix6UserProxy._(super.target, super.handler, super.metadata);
+class _prefix5UserProxy extends AbstractProxy implements prefix5.User {
+  _prefix5UserProxy._(super.target, super.handler, super.metadata);
 }

@@ -38,19 +38,13 @@ class OrmModule {
 
   @Provide()
   EntityManager createEntityManager(
-    Database database,
-    Serializer serializer,
-    MetadataSchemaResolver schemaResolver,
+    Orm orm,
   ) {
-    return EntityManagerImpl(
-      schemaResolver: schemaResolver,
-      database: database,
-      serializer: serializer,
-    );
+    return orm.entityManager;
   }
 
   /// Cria a instância principal do ORM
-  @ProvideSingleton()
+  @Provide()
   Orm createOrm(
     Database database,
     Serializer serializer,

@@ -1,3 +1,4 @@
+import 'package:forge_orm/forge_orm.dart';
 import 'package:test/test.dart';
 import 'test_helper.dart';
 import 'test_entities.dart';
@@ -309,6 +310,27 @@ void main() {
     });
 
     group('Operation Ordering', () {
+      test('should update registered entity correctly', () async {
+        await helper.database.connection.execute(
+          'INSERT INTO users (name, email) VALUES (?, ?)',
+          ['Existing User', 'some@email.com'],
+        );
+
+        final user = User()
+          ..id = 1
+          ..name = 'Updated User'
+          ..email = 'new@email.com';
+
+        helper.orm.entityManager.persist(user);
+        await helper.orm.entityManager.flush();
+
+        final fetched = await helper.orm.getRepository<User>().find(1);
+
+        expect(fetched, isNotNull);
+        expect(fetched!.name, 'Updated User');
+        expect(fetched.email, 'new@email.com');
+      });
+
       test('should insert parent before children', () async {
         final user = User()
           ..name = 'Parent'
@@ -373,42 +395,6 @@ void main() {
         expect(post2.userId, user.id);
         expect(comment1.postId, post1.id);
         expect(comment2.postId, post1.id);
-      });
-    });
-
-    group('Error Handling', () {
-      test('should throw error when persisting null entity', () {
-        expect(
-          () => helper.orm.entityManager.persist(null),
-          throwsArgumentError,
-        );
-      });
-
-      test('should throw error when removing null entity', () {
-        expect(
-          () => helper.orm.entityManager.remove(null),
-          throwsArgumentError,
-        );
-      });
-
-      test('should handle flush errors gracefully', () async {
-        final user = User()
-          ..name = 'Test'
-          ..email = 'test@example.com';
-        helper.orm.entityManager.persist(user);
-        await helper.orm.entityManager.flush();
-
-        // Try to insert duplicate with same ID
-        final duplicate = User()
-          ..id = user.id
-          ..name = 'Duplicate'
-          ..email = 'dup@example.com';
-        helper.orm.entityManager.persist(duplicate);
-
-        expect(
-          () async => await helper.orm.entityManager.flush(),
-          throwsA(isA<Exception>()),
-        );
       });
     });
   });

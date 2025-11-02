@@ -179,39 +179,6 @@ void main() {
         expect(found, isNotNull);
         expect(found!.name, 'Unique');
       });
-
-      test('should count entities', () async {
-        final user1 = User()
-          ..name = 'User 1'
-          ..email = 'user1@example.com';
-        final user2 = User()
-          ..name = 'User 2'
-          ..email = 'user2@example.com';
-
-        helper.orm.entityManager.persist(user1);
-        helper.orm.entityManager.persist(user2);
-        await helper.orm.entityManager.flush();
-
-        final repository = helper.orm.getRepository<User>();
-        final count = await repository.count();
-
-        expect(count, 2);
-      });
-
-      test('should check if entity exists', () async {
-        final user = User()
-          ..name = 'Exists'
-          ..email = 'exists@example.com';
-        helper.orm.entityManager.persist(user);
-        await helper.orm.entityManager.flush();
-
-        final repository = helper.orm.getRepository<User>();
-        final exists = await repository.exists(user.id);
-        final notExists = await repository.exists(9999);
-
-        expect(exists, true);
-        expect(notExists, false);
-      });
     });
 
     group('Update', () {
@@ -313,33 +280,9 @@ void main() {
         final count = await helper.countRecords('users');
         expect(count, 0);
       });
-
-      test('should use repository delete method', () async {
-        final user = User()
-          ..name = 'Delete'
-          ..email = 'delete@example.com';
-        await helper.orm.getRepository<User>().save(user);
-
-        final userId = user.id;
-        expect(await helper.recordExists('users', 'id', userId), true);
-
-        await helper.orm.getRepository<User>().delete(user);
-
-        expect(await helper.recordExists('users', 'id', userId), false);
-      });
     });
 
     group('Repository Methods', () {
-      test('should use save method (persist + flush)', () async {
-        final user = User()
-          ..name = 'Quick Save'
-          ..email = 'save@example.com';
-        await helper.orm.getRepository<User>().save(user);
-
-        expect(user.id, isNotNull);
-        expect(await helper.countRecords('users'), 1);
-      });
-
       test('should throw EntityNotFoundException with findOrFail', () async {
         final repository = helper.orm.getRepository<User>();
 

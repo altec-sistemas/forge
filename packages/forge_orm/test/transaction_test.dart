@@ -224,14 +224,17 @@ void main() {
       existingUser.name = 'Existing Updated';
       helper.orm.entityManager.persist(existingUser);
 
-      final profile = Profile()..bio = 'New Bio';
-      newUser.profile = profile;
+      final profile = Profile()
+        ..bio = 'New Bio'
+        ..user = newUser;
 
       helper.orm.entityManager.persist(profile);
       await helper.orm.entityManager.flush();
 
       expect(newUser.id, isNotNull);
       expect(profile.id, isNotNull);
+      expect(profile.userId, equals(newUser.id));
+      expect(newUser.profile, equals(profile));
 
       final repository = helper.orm.getRepository<User>();
       final users = await repository.findAll();
