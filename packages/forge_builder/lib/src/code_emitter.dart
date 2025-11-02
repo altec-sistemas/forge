@@ -312,14 +312,19 @@ class CodeEmitter {
         return returnType.isDartAsyncFuture || returnType.isDartAsyncFutureOr;
       });
 
-      // Register as singleton or factory
-      if (service.isSingleton) {
-        _buffer.writeln('    builder.registerSingleton<$serviceType>(');
-      } else {
-        _buffer.writeln('    builder.registerFactory<$serviceType>(');
+      // Generate environment check if needed
+      if (service.env != null) {
+        _buffer.writeln("    if (env == '${service.env}') {");
       }
 
-      _buffer.write('      (i) => $serviceType');
+      // Register as singleton or factory
+      if (service.isSingleton) {
+        _buffer.writeln('      builder.registerSingleton<$serviceType>(');
+      } else {
+        _buffer.writeln('      builder.registerFactory<$serviceType>(');
+      }
+
+      _buffer.write('        (i) => $serviceType');
 
       final constructorName = constructor.name3!;
       if (constructorName.isNotEmpty && constructorName != 'new') {
@@ -350,9 +355,9 @@ class CodeEmitter {
       if (hasRequired) {
         _buffer.writeln(',');
         if (hasAsyncRequired) {
-          _buffer.writeln('      onCreate: (instance, i) async {');
+          _buffer.writeln('        onCreate: (instance, i) async {');
         } else {
-          _buffer.writeln('      onCreate: (instance, i) {');
+          _buffer.writeln('        onCreate: (instance, i) {');
         }
 
         // Generate calls to @Required setters
@@ -361,7 +366,7 @@ class CodeEmitter {
           final param = setter.element.formalParameters.firstOrNull;
 
           if (param != null) {
-            _buffer.write('        instance.$setterName = ');
+            _buffer.write('          instance.$setterName = ');
             _buffer.write(_generateInjectorCall(param, setter.parameterInject));
             _buffer.writeln(';');
           }
@@ -374,7 +379,7 @@ class CodeEmitter {
           final isAsync =
               returnType.isDartAsyncFuture || returnType.isDartAsyncFutureOr;
 
-          _buffer.write('        ');
+          _buffer.write('          ');
           if (isAsync) {
             _buffer.write('await ');
           }
@@ -397,12 +402,16 @@ class CodeEmitter {
           _buffer.writeln(');');
         }
 
-        _buffer.writeln('      },');
+        _buffer.writeln('        },');
       } else {
         _buffer.writeln(',');
       }
 
-      _buffer.writeln('    );');
+      _buffer.writeln('      );');
+
+      if (service.env != null) {
+        _buffer.writeln('    }');
+      }
     }
   }
 

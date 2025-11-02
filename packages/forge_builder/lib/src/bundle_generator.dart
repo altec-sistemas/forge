@@ -372,6 +372,7 @@ class ServiceData {
   final List<InjectInfo> constructorInjects;
   final List<RequiredMethodData> requiredMethods;
   final List<RequiredSetterData> requiredSetters;
+  final String? env;
 
   ServiceData({
     required this.element,
@@ -380,6 +381,7 @@ class ServiceData {
     required this.constructorInjects,
     this.requiredMethods = const [],
     this.requiredSetters = const [],
+    this.env,
   });
 }
 

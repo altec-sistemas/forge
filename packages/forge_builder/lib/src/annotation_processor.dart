@@ -115,6 +115,10 @@ class AnnotationProcessor {
         final requiredMethods = _processRequiredMethods(element);
         final requiredSetters = _processRequiredSetters(element);
 
+        // Extract env field from annotation
+        final envField = injectableAnnotation.getField('env');
+        final env = envField?.toStringValue();
+
         data.services.add(
           ServiceData(
             element: element,
@@ -124,6 +128,7 @@ class AnnotationProcessor {
             constructorInjects: constructorInjects,
             requiredMethods: requiredMethods,
             requiredSetters: requiredSetters,
+            env: env,
           ),
         );
       }
