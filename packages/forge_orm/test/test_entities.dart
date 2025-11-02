@@ -1,4 +1,3 @@
-import 'package:forge_core/forge_core.dart';
 import 'package:forge_orm/forge_orm.dart';
 
 @Entity('users')

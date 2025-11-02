@@ -1,5 +1,4 @@
 import 'package:collection/collection.dart';
-import 'package:forge_core/forge_core.dart';
 
 import '../../forge_orm.dart';
 import 'entity_change_tracker.dart';

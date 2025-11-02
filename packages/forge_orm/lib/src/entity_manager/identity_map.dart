@@ -15,7 +15,7 @@ class IdentityMap {
     final type = entity.runtimeType;
     final typeMap = _map[type];
     if (typeMap == null) return false;
-    
+
     return typeMap.values.any((e) => identical(e, entity));
   }
 

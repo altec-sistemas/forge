@@ -1,4 +1,3 @@
-
 class DatabaseConfig {
   final ConnectionConfig connection;
   final int? maxConnections;

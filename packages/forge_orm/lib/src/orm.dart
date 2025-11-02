@@ -1,11 +1,6 @@
 import 'package:forge_core/forge_core.dart';
 import '../forge_orm.dart';
 import 'entity_manager/entity_change_tracker.dart';
-import 'entity_manager/relationship_manager.dart';
-import 'metadata_schema_resolver.dart';
-import 'database.dart';
-import 'repository.dart';
-import 'builder/query_builder.dart';
 
 /// Main ORM interface providing access to entity management and database operations.
 ///

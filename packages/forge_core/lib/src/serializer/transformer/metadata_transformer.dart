@@ -149,8 +149,6 @@ class MetadataTransformer implements Transformer, SerializerAware {
   final _MetadataCache _cache = _MetadataCache();
   late Serializer _serializer;
 
-  static final _primitiveTypes = {int, double, num, String, bool, DateTime};
-
   MetadataTransformer(this._metadataRegistry);
 
   @override
@@ -253,8 +251,6 @@ class MetadataTransformer implements Transformer, SerializerAware {
 
     // Check for circular reference
     if (tracker.isVisited(object!)) {
-      // Handle circular reference based on context settings
-      final maxDepth = context.extra['maxDepth'] as int?;
       final circularRefHandling =
           context.extra['circularReferenceHandling'] as String? ?? 'reference';
 

@@ -12,9 +12,9 @@ class EntityChangeTracker {
     required Object originalEntity,
     required Object proxyEntity,
     required ClassMetadata metadata,
-  })  : _originalEntity = originalEntity,
-        _proxyEntity = proxyEntity,
-        _metadata = metadata;
+  }) : _originalEntity = originalEntity,
+       _proxyEntity = proxyEntity,
+       _metadata = metadata;
 
   Object get entity => _proxyEntity;
   Object get originalEntity => _originalEntity;
@@ -49,10 +49,10 @@ class EntityChangeTracker {
 /// Change tracking manager for entities
 class ChangeTrackingManager {
   final Map<Object, EntityChangeTracker> _trackers = {};
-  
+
   // Callback para RelationshipManager - será definido pelo EntityManager
-  void Function(Object entity, String propertyName, dynamic newValue)? 
-      onRelationshipChange;
+  void Function(Object entity, String propertyName, dynamic newValue)?
+  onRelationshipChange;
 
   /// Creates a trackable proxy for an entity
   T createTrackedProxy<T>(T entity, ClassMetadata metadata) {
@@ -66,12 +66,12 @@ class ChangeTrackingManager {
         if (tracker != null) {
           tracker.markChanged(setterName, value);
         }
-        
+
         // Notify relationship manager if this is a relationship property
         if (onRelationshipChange != null) {
           onRelationshipChange!(entity!, setterName, value);
         }
-        
+
         return null;
       },
     );
