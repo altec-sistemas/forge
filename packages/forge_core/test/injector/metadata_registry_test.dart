@@ -509,7 +509,13 @@ void main() {
 
       final withGetters = ClassMetadata(
         typeMetadata: TypeMetadata<UserService>(),
-        getters: [],
+        getters: [
+          GetterMetadata(
+            returnType: TypeMetadata<String>(),
+            name: 'username',
+            getter: (instance) => (instance as UserService).getUsername(),
+          ),
+        ],
       );
       final withoutGetters = ClassMetadata(
         typeMetadata: TypeMetadata<ProductService>(),
@@ -643,7 +649,14 @@ void main() {
 
       final withSetters = ClassMetadata(
         typeMetadata: TypeMetadata<UserService>(),
-        setters: [],
+        setters: [
+          SetterMetadata(
+            valueType: TypeMetadata<String>(),
+            name: 'username',
+            setter: (instance, value) =>
+                (instance as UserService).setUsername(value as String),
+          ),
+        ],
       );
       final withoutSetters = ClassMetadata(
         typeMetadata: TypeMetadata<ProductService>(),
@@ -834,8 +847,14 @@ void main() {
 
         final withConstructors = ClassMetadata(
           typeMetadata: TypeMetadata<UserService>(),
-          constructors: [],
+          constructors: [
+            ConstructorMetadata(
+              name: '',
+              factory: () => UserService.new,
+            ),
+          ],
         );
+
         final withoutConstructors = ClassMetadata(
           typeMetadata: TypeMetadata<ProductService>(),
           constructors: null,
