@@ -22,18 +22,16 @@ enum LogLevel {
 class LogEntry {
   final DateTime timestamp;
   final LogLevel level;
+  final String tag;
   final String message;
-  final String channelName;
-  final String? context;
   final Object? error;
   final StackTrace? stackTrace;
   final Map<String, dynamic>? extra;
 
   LogEntry({
     required this.level,
+    required this.tag,
     required this.message,
-    required this.channelName,
-    this.context,
     this.error,
     this.stackTrace,
     this.extra,
@@ -42,14 +40,6 @@ class LogEntry {
 
 /// Handler for processing log entries.
 abstract class LogHandler {
-  /// Minimum level this handler will process
-  LogLevel minLevel;
-
-  LogHandler({this.minLevel = LogLevel.debug});
-
-  /// Check if this handler should process the given level
-  bool shouldHandle(LogLevel level) => level.severity >= minLevel.severity;
-
   /// Process a log entry.
   void handle(LogEntry entry);
 
@@ -60,445 +50,39 @@ abstract class LogHandler {
   Future<void> close() async {}
 }
 
-/// Base logging interface.
-abstract class Logger {
-  /// Logs a message at the specified level.
-  void log(
-    LogLevel level,
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  });
-
-  /// Logs a debug message.
-  void debug(String message, {String? context, Map<String, dynamic>? extra});
-
-  /// Logs an info message.
-  void info(String message, {String? context, Map<String, dynamic>? extra});
-
-  /// Logs a success message.
-  void success(String message, {String? context, Map<String, dynamic>? extra});
-
-  /// Logs a warning message.
-  void warning(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  });
-
-  /// Logs an error message.
-  void error(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  });
-
-  /// Logs a fatal message.
-  void fatal(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  });
-
-  /// Creates a child logger with a specific context.
-  Logger child(String context);
-}
-
-/// Represents a logging channel (similar to Monolog's Logger).
-/// Each channel has its own name and set of handlers.
-class LogChannel implements Logger {
-  final String name;
-  final List<LogHandler> _handlers = [];
-  final String? _context;
-
-  LogChannel(this.name, {String? context}) : _context = context;
-
-  /// Add a handler to this channel.
-  void pushHandler(LogHandler handler) {
-    _handlers.add(handler);
-  }
-
-  /// Remove a handler from this channel.
-  void popHandler() {
-    if (_handlers.isNotEmpty) {
-      _handlers.removeLast();
-    }
-  }
-
-  /// Get all handlers.
-  List<LogHandler> get handlers => List.unmodifiable(_handlers);
-
-  @override
-  void log(
-    LogLevel level,
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    final entry = LogEntry(
-      level: level,
-      message: message,
-      channelName: name,
-      context: context ?? _context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-
-    for (final handler in _handlers) {
-      try {
-        if (handler.shouldHandle(level)) {
-          handler.handle(entry);
-        }
-      } catch (e) {
-        // Avoid infinite loops if handler throws
-        print('Error in log handler: $e');
-      }
-    }
-  }
-
-  @override
-  void debug(String message, {String? context, Map<String, dynamic>? extra}) {
-    log(LogLevel.debug, message, context: context, extra: extra);
-  }
-
-  @override
-  void info(String message, {String? context, Map<String, dynamic>? extra}) {
-    log(LogLevel.info, message, context: context, extra: extra);
-  }
-
-  @override
-  void success(String message, {String? context, Map<String, dynamic>? extra}) {
-    log(LogLevel.success, message, context: context, extra: extra);
-  }
-
-  @override
-  void warning(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    log(
-      LogLevel.warning,
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
-
-  @override
-  void error(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    log(
-      LogLevel.error,
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
-
-  @override
-  void fatal(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    log(
-      LogLevel.fatal,
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
-
-  @override
-  LogChannel child(String context) {
-    final childChannel = LogChannel(
-      name,
-      context: _context != null ? '$_context.$context' : context,
-    );
-
-    // Share the same handlers
-    for (final handler in _handlers) {
-      childChannel.pushHandler(handler);
-    }
-
-    return childChannel;
-  }
-
-  /// Flush all handlers.
-  Future<void> flush() async {
-    await Future.wait(_handlers.map((h) => h.flush()));
-  }
-
-  /// Close all handlers.
-  Future<void> close() async {
-    await Future.wait(_handlers.map((h) => h.close()));
-  }
-}
-
-/// Configuration for a predefined channel.
-class ChannelConfig {
-  final String name;
-  final List<LogHandler> handlers;
-
-  ChannelConfig({
-    required this.name,
-    List<LogHandler>? handlers,
-  }) : handlers = handlers ?? [];
-
-  /// Add a handler to this configuration.
-  ChannelConfig withHandler(LogHandler handler) {
-    handlers.add(handler);
-    return this;
-  }
-}
-
-/// Main LoggerManager class that manages multiple channels (similar to Monolog).
-class LoggerManager implements Logger {
-  final Map<String, LogChannel> _channels = {};
-  final Map<String, ChannelConfig> _channelConfigs = {};
-  final String _defaultChannelName;
-
-  LoggerManager({
-    String defaultChannel = 'app',
-    List<ChannelConfig>? channels,
-  }) : _defaultChannelName = defaultChannel {
-    // Register predefined channels
-    if (channels != null) {
-      for (final config in channels) {
-        _channelConfigs[config.name] = config;
-      }
-    }
-
-    // Create default channel
-    _getOrCreateChannel(defaultChannel);
-  }
-
-  /// Internal method to get or create a channel with configuration.
-  LogChannel _getOrCreateChannel(String name) {
-    if (_channels.containsKey(name)) {
-      return _channels[name]!;
-    }
-
-    final channel = LogChannel(name);
-
-    // Apply predefined configuration if exists
-    if (_channelConfigs.containsKey(name)) {
-      final config = _channelConfigs[name]!;
-      for (final handler in config.handlers) {
-        channel.pushHandler(handler);
-      }
-    }
-
-    _channels[name] = channel;
-    return channel;
-  }
-
-  /// Get or create a channel by name.
-  LogChannel channel(String name) {
-    return _getOrCreateChannel(name);
-  }
-
-  /// Get the default channel.
-  LogChannel get defaultChannel => channel(_defaultChannelName);
-
-  /// Check if a channel exists.
-  bool hasChannel(String name) => _channels.containsKey(name);
-
-  /// Get all channel names.
-  List<String> get channelNames => _channels.keys.toList();
-
-  /// Get all configured (predefined) channel names.
-  List<String> get configuredChannelNames => _channelConfigs.keys.toList();
-
-  /// Remove a channel.
-  void removeChannel(String name) {
-    _channels.remove(name);
-  }
-
-  /// Register a new channel configuration (can be used after LoggerManager creation).
-  void registerChannelConfig(ChannelConfig config) {
-    _channelConfigs[config.name] = config;
-
-    // If channel already exists, apply handlers
-    if (_channels.containsKey(config.name)) {
-      final channel = _channels[config.name]!;
-      for (final handler in config.handlers) {
-        channel.pushHandler(handler);
-      }
-    }
-  }
-
-  // Convenience methods that delegate to default channel and implement Logger interface
-
-  @override
-  void log(
-    LogLevel level,
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    defaultChannel.log(
-      level,
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
-
-  @override
-  void debug(String message, {String? context, Map<String, dynamic>? extra}) {
-    defaultChannel.debug(message, context: context, extra: extra);
-  }
-
-  @override
-  void info(String message, {String? context, Map<String, dynamic>? extra}) {
-    defaultChannel.info(message, context: context, extra: extra);
-  }
-
-  @override
-  void success(String message, {String? context, Map<String, dynamic>? extra}) {
-    defaultChannel.success(message, context: context, extra: extra);
-  }
-
-  @override
-  void warning(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    defaultChannel.warning(
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
-
-  @override
-  void error(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    defaultChannel.error(
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
-
-  @override
-  void fatal(
-    String message, {
-    String? context,
-    Object? error,
-    StackTrace? stackTrace,
-    Map<String, dynamic>? extra,
-  }) {
-    defaultChannel.fatal(
-      message,
-      context: context,
-      error: error,
-      stackTrace: stackTrace,
-      extra: extra,
-    );
-  }
-
-  @override
-  Logger child(String context) {
-    return defaultChannel.child(context);
-  }
-
-  /// Flush all channels.
-  Future<void> flush() async {
-    await Future.wait(_channels.values.map((c) => c.flush()));
-  }
-
-  /// Close all channels.
-  Future<void> close() async {
-    await Future.wait(_channels.values.map((c) => c.close()));
-  }
-}
-
 /// Console log handler that prints to stdout with colored formatting.
 class ConsoleLogHandler extends LogHandler {
   final bool colored;
   final bool showTimestamp;
-  final bool showContext;
-  final bool showChannel;
+  final bool inline;
 
   ConsoleLogHandler({
-    super.minLevel,
     this.colored = true,
     this.showTimestamp = true,
-    this.showContext = true,
-    this.showChannel = true,
+    this.inline = false,
   });
 
   @override
   void handle(LogEntry entry) {
+    final buffer = StringBuffer();
+
     // Timestamp
     if (showTimestamp) {
       final timestamp = _formatTimestamp(entry.timestamp);
-      print(timestamp);
+      if (inline) {
+        buffer.write('$timestamp ');
+      } else {
+        print(timestamp);
+      }
     }
-
-    // Build main log line
-    final buffer = StringBuffer();
 
     // Level with color
     final levelStr = _formatLevel(entry.level);
     buffer.write(levelStr);
 
-    // Channel
-    if (showChannel) {
-      final channelStr = _formatChannel(entry.channelName);
-      buffer.write(' $channelStr');
-    }
-
-    // Context
-    if (showContext && entry.context != null) {
-      final contextStr = _formatContext(entry.context!);
-      buffer.write(' $contextStr');
-    }
+    // Tag
+    final tagStr = _formatTag(entry.tag);
+    buffer.write(' $tagStr');
 
     // Message
     buffer.write(' ${entry.message}');
@@ -513,7 +97,7 @@ class ConsoleLogHandler extends LogHandler {
       print('$errorType ${entry.error}');
     }
 
-    // Stack trace (simplified)
+    // Stack trace
     if (entry.stackTrace != null) {
       _printStackTrace(entry.stackTrace!);
     }
@@ -525,7 +109,9 @@ class ConsoleLogHandler extends LogHandler {
   }
 
   String _formatTimestamp(DateTime timestamp) {
-    final timeStr = '\n${timestamp.toLocal()}';
+    final timeStr = inline
+        ? '${timestamp.toLocal()}'
+        : '\n${timestamp.toLocal()}';
     return colored ? Colorize(timeStr).darkGray().toString() : timeStr;
   }
 
@@ -546,14 +132,9 @@ class ConsoleLogHandler extends LogHandler {
     };
   }
 
-  String _formatChannel(String channel) {
-    final channelStr = '[$channel]';
-    return colored ? Colorize(channelStr).magenta().toString() : channelStr;
-  }
-
-  String _formatContext(String context) {
-    final contextStr = '[$context]';
-    return colored ? Colorize(contextStr).cyan().toString() : contextStr;
+  String _formatTag(String tag) {
+    final tagStr = '[$tag]';
+    return colored ? Colorize(tagStr).magenta().toString() : tagStr;
   }
 
   String _formatExtra(Map<String, dynamic> extra) {
@@ -572,104 +153,73 @@ class ConsoleLogHandler extends LogHandler {
   }
 }
 
-/// Estratégia de organização dos arquivos de log
+/// File organization strategy
 enum LogFileStrategy {
-  /// Um único arquivo para todos os logs
+  /// Single file for all logs
   single,
 
-  /// Um arquivo por canal (ex: auth.log, network.log)
-  byChannel,
+  /// One file per tag (ex: auth.log, network.log)
+  byTag,
 
-  /// Um arquivo por data (ex: 2025-10-29.log)
+  /// One file per date (ex: 2025-11-05.log)
   byDate,
 
-  /// Um arquivo por canal e data (ex: auth_2025-10-29.log)
-  byChannelAndDate,
+  /// One file per tag and date (ex: auth_2025-11-05.log)
+  byTagAndDate,
 
-  /// Um arquivo por nível de log (ex: error.log, warning.log)
+  /// One file per level (ex: error.log, warning.log)
   byLevel,
-
-  /// Um arquivo por canal e nível (ex: auth_error.log)
-  byChannelAndLevel,
 }
 
-/// Formato de timestamp nos nomes de arquivo
+/// Date format for filenames
 enum DateFormat {
-  /// 2025-10-29
+  /// 2025-11-05
   date,
 
-  /// 2025-10
+  /// 2025-11
   yearMonth,
 
-  /// 2025-W44 (semana do ano)
-  week,
-
-  /// 2025-10-29_14-30-45
+  /// 2025-11-05_14-30-45
   dateTime,
 }
 
-/// Estratégia de rotação de arquivos
+/// File rotation strategy
 enum RotationStrategy {
-  /// Sem rotação
+  /// No rotation
   none,
 
-  /// Rotação por tamanho máximo
+  /// Rotation by max size
   bySize,
 
-  /// Rotação diária (muda de arquivo a cada dia)
+  /// Daily rotation
   daily,
 
-  /// Rotação por ambos (tamanho OU tempo)
+  /// Rotation by size OR daily
   bySizeOrDaily,
 }
 
-/// Configuração do FileLogHandler
+/// File log handler configuration
 class FileLogConfig {
-  /// Diretório base para os logs
   final String baseDirectory;
-
-  /// Estratégia de organização dos arquivos
   final LogFileStrategy strategy;
-
-  /// Formato de data nos nomes de arquivo
   final DateFormat dateFormat;
-
-  /// Extensão dos arquivos (sem o ponto)
   final String extension;
-
-  /// Estratégia de rotação
   final RotationStrategy rotationStrategy;
-
-  /// Tamanho máximo do arquivo em bytes (para rotação por tamanho)
   final int? maxFileSize;
-
-  /// Número máximo de arquivos a manter (0 = ilimitado)
   final int maxFiles;
-
-  /// Criar subdiretórios por data (ex: logs/2025/10/29/)
-  final bool createDateDirectories;
-
-  /// Prefixo para nomes de arquivo
-  final String? filePrefix;
-
-  /// Sufixo para nomes de arquivo
-  final String? fileSuffix;
 
   const FileLogConfig({
     this.baseDirectory = 'logs',
-    this.strategy = LogFileStrategy.byChannelAndDate,
+    this.strategy = LogFileStrategy.byTagAndDate,
     this.dateFormat = DateFormat.date,
     this.extension = 'log',
     this.rotationStrategy = RotationStrategy.daily,
     this.maxFileSize = 10 * 1024 * 1024, // 10 MB
     this.maxFiles = 30,
-    this.createDateDirectories = false,
-    this.filePrefix,
-    this.fileSuffix,
   });
 }
 
-/// File log handler that writes to a file with advanced organization strategies.
+/// File log handler that writes to a file.
 class FileLogHandler extends LogHandler {
   final FileLogConfig config;
   final bool includeTimestamp;
@@ -682,7 +232,6 @@ class FileLogHandler extends LogHandler {
 
   FileLogHandler({
     required this.config,
-    super.minLevel,
     this.includeTimestamp = true,
     this.autoFlushInterval = const Duration(seconds: 5),
   }) {
@@ -694,25 +243,23 @@ class FileLogHandler extends LogHandler {
     final filePath = _getFilePath(entry);
     final buffer = _buffers.putIfAbsent(filePath, () => StringBuffer());
 
-    // Formata a linha do log
+    // Format log line
     final timestamp = includeTimestamp
         ? '${entry.timestamp.toIso8601String()} '
         : '';
 
-    final context = entry.context != null ? '[${entry.context}] ' : '';
-
     final line =
         '$timestamp[${entry.level.name.toUpperCase()}] '
-        '[${entry.channelName}] $context${entry.message}\n';
+        '[${entry.tag}] ${entry.message}\n';
 
     buffer.write(line);
 
-    // Adiciona erro se existir
+    // Add error if present
     if (entry.error != null) {
       buffer.write('  Error: ${entry.error}\n');
     }
 
-    // Adiciona stack trace se existir
+    // Add stack trace if present
     if (entry.stackTrace != null) {
       buffer.write('  Stack trace:\n');
       buffer.write(
@@ -720,21 +267,20 @@ class FileLogHandler extends LogHandler {
       );
     }
 
-    // Adiciona campos extras se existirem
+    // Add extra fields if present
     if (entry.extra != null && entry.extra!.isNotEmpty) {
       buffer.write('  Extra: ${entry.extra}\n');
     }
 
-    // Verifica se precisa fazer rotação
+    // Check if rotation is needed
     _checkRotation(filePath, entry);
   }
 
-  /// Verifica e executa rotação se necessário
   void _checkRotation(String filePath, LogEntry entry) {
     final now = entry.timestamp;
     final lastCheck = _lastRotationCheck[filePath];
 
-    // Rotação diária
+    // Daily rotation
     if (config.rotationStrategy == RotationStrategy.daily ||
         config.rotationStrategy == RotationStrategy.bySizeOrDaily) {
       if (lastCheck != null && !_isSameDay(lastCheck, now)) {
@@ -744,86 +290,53 @@ class FileLogHandler extends LogHandler {
       }
     }
 
-    // Rotação por tamanho
+    // Size rotation
     if (config.rotationStrategy == RotationStrategy.bySize ||
         config.rotationStrategy == RotationStrategy.bySizeOrDaily) {
       _checkAndRotateBySize(filePath);
     }
 
-    // Atualiza último check
     _lastRotationCheck[filePath] ??= now;
   }
 
-  /// Verifica se duas datas são do mesmo dia
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  /// Gera o caminho do arquivo baseado na estratégia
   String _getFilePath(LogEntry entry) {
     final fileName = _getFileName(entry);
-
-    if (config.createDateDirectories) {
-      final now = entry.timestamp;
-      final dateDir = path.join(
-        config.baseDirectory,
-        now.year.toString(),
-        now.month.toString().padLeft(2, '0'),
-        now.day.toString().padLeft(2, '0'),
-      );
-      return path.join(dateDir, fileName);
-    }
-
     return path.join(config.baseDirectory, fileName);
   }
 
-  /// Gera o nome do arquivo baseado na estratégia
   String _getFileName(LogEntry entry) {
     final parts = <String>[];
 
-    // Adiciona prefixo
-    if (config.filePrefix != null) {
-      parts.add(config.filePrefix!);
-    }
-
-    // Adiciona componentes baseados na estratégia
     switch (config.strategy) {
       case LogFileStrategy.single:
         parts.add('app');
         break;
 
-      case LogFileStrategy.byChannel:
-        parts.add(entry.channelName);
+      case LogFileStrategy.byTag:
+        parts.add(entry.tag);
         break;
 
       case LogFileStrategy.byDate:
         parts.add(_formatDate(entry.timestamp));
         break;
 
-      case LogFileStrategy.byChannelAndDate:
-        parts.add(entry.channelName);
+      case LogFileStrategy.byTagAndDate:
+        parts.add(entry.tag);
         parts.add(_formatDate(entry.timestamp));
         break;
 
       case LogFileStrategy.byLevel:
         parts.add(entry.level.name);
         break;
-
-      case LogFileStrategy.byChannelAndLevel:
-        parts.add(entry.channelName);
-        parts.add(entry.level.name);
-        break;
-    }
-
-    // Adiciona sufixo
-    if (config.fileSuffix != null) {
-      parts.add(config.fileSuffix!);
     }
 
     return '${parts.join('_')}.${config.extension}';
   }
 
-  /// Formata a data de acordo com o formato configurado
   String _formatDate(DateTime date) {
     switch (config.dateFormat) {
       case DateFormat.date:
@@ -832,10 +345,6 @@ class FileLogHandler extends LogHandler {
 
       case DateFormat.yearMonth:
         return '${date.year}-${date.month.toString().padLeft(2, '0')}';
-
-      case DateFormat.week:
-        final weekNumber = _getWeekNumber(date);
-        return '${date.year}-W${weekNumber.toString().padLeft(2, '0')}';
 
       case DateFormat.dateTime:
         return '${date.year}-${date.month.toString().padLeft(2, '0')}-'
@@ -846,18 +355,6 @@ class FileLogHandler extends LogHandler {
     }
   }
 
-  /// Calcula o número da semana no ano (ISO 8601)
-  int _getWeekNumber(DateTime date) {
-    // Encontra a quinta-feira da semana
-    final thursday = date.add(Duration(days: 4 - date.weekday));
-    // Primeiro dia do ano
-    final firstDay = DateTime(thursday.year, 1, 1);
-    // Calcula a semana
-    final weekNumber = ((thursday.difference(firstDay).inDays) / 7).ceil();
-    return weekNumber;
-  }
-
-  /// Verifica e faz rotação por tamanho se necessário
   void _checkAndRotateBySize(String filePath) {
     if (config.maxFileSize == null) return;
 
@@ -870,12 +367,11 @@ class FileLogHandler extends LogHandler {
     }
   }
 
-  /// Faz a rotação de um arquivo
   void _rotateFile(String filePath) {
     final file = File(filePath);
     if (!file.existsSync()) return;
 
-    // Primeiro, faz flush do buffer atual
+    // Flush current buffer first
     final buffer = _buffers[filePath];
     if (buffer != null && buffer.isNotEmpty) {
       try {
@@ -890,7 +386,7 @@ class FileLogHandler extends LogHandler {
       }
     }
 
-    // Gera nome para arquivo rotacionado
+    // Generate rotated filename
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final ext = path.extension(filePath);
     final nameWithoutExt = path.basenameWithoutExtension(filePath);
@@ -898,7 +394,7 @@ class FileLogHandler extends LogHandler {
     final rotatedName = '$nameWithoutExt.$timestamp$ext';
     final rotatedPath = path.join(dir, rotatedName);
 
-    // Renomeia o arquivo
+    // Rename file
     try {
       file.renameSync(rotatedPath);
     } catch (e) {
@@ -906,14 +402,13 @@ class FileLogHandler extends LogHandler {
       return;
     }
 
-    // Limpa o cache para este arquivo
+    // Clear cache
     _files.remove(filePath);
 
-    // Limpa arquivos antigos
+    // Clean old files
     _cleanOldFiles(dir);
   }
 
-  /// Remove arquivos antigos baseado no maxFiles
   void _cleanOldFiles(String directory) {
     if (config.maxFiles <= 0) return;
 
@@ -921,14 +416,12 @@ class FileLogHandler extends LogHandler {
       final dir = Directory(directory);
       if (!dir.existsSync()) return;
 
-      // Lista todos os arquivos .log no diretório
       final files = dir
           .listSync()
           .whereType<File>()
           .where((f) => f.path.endsWith('.${config.extension}'))
           .toList();
 
-      // Ordena por data de modificação (mais antigo primeiro)
       files.sort((a, b) {
         try {
           return a.statSync().modified.compareTo(b.statSync().modified);
@@ -937,7 +430,6 @@ class FileLogHandler extends LogHandler {
         }
       });
 
-      // Remove arquivos excedentes
       while (files.length > config.maxFiles) {
         try {
           files.first.deleteSync();
@@ -958,14 +450,12 @@ class FileLogHandler extends LogHandler {
 
     for (final entry in _buffers.entries) {
       if (entry.value.isEmpty) continue;
-
       futures.add(_flushBuffer(entry.key, entry.value));
     }
 
     await Future.wait(futures);
   }
 
-  /// Faz flush de um buffer específico
   Future<void> _flushBuffer(String filePath, StringBuffer buffer) async {
     try {
       final file = await _getOrCreateFile(filePath);
@@ -980,7 +470,6 @@ class FileLogHandler extends LogHandler {
     }
   }
 
-  /// Obtém ou cria o arquivo de log
   Future<File> _getOrCreateFile(String filePath) async {
     if (_files.containsKey(filePath)) {
       return _files[filePath]!;
@@ -988,13 +477,11 @@ class FileLogHandler extends LogHandler {
 
     final file = File(filePath);
 
-    // Cria diretórios se necessário
     final directory = file.parent;
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
 
-    // Cria o arquivo se não existir
     if (!await file.exists()) {
       await file.create(recursive: true);
     }
@@ -1013,29 +500,291 @@ class FileLogHandler extends LogHandler {
   }
 }
 
-/// Null logger handler that discards all logs.
-class NullLogHandler extends LogHandler {
-  NullLogHandler() : super(minLevel: LogLevel.fatal);
+/// Filter function type
+typedef LogFilter = bool Function(LogEntry entry);
 
-  @override
-  void handle(LogEntry entry) {}
+/// Global logger configuration
+class _LoggerConfig {
+  LogLevel globalMinLevel = LogLevel.debug;
+  final List<LogHandler> globalHandlers = [];
+  final Map<String, LogLevel> tagLevels = {};
+  final Map<String, List<LogHandler>> tagHandlers = {};
+  final Map<String, LogFilter> tagFilters = {};
 }
 
-/// Stream handler that sends logs to a stream.
-class StreamLogHandler extends LogHandler {
-  final StreamController<LogEntry> _controller = StreamController.broadcast();
+/// Global logger configuration instance
+final _config = _LoggerConfig();
 
-  StreamLogHandler({super.minLevel});
+/// Logger instance for a specific tag
+class Logger {
+  final String tag;
 
-  Stream<LogEntry> get stream => _controller.stream;
+  const Logger(this.tag);
 
-  @override
-  void handle(LogEntry entry) {
-    _controller.add(entry);
+  /// Internal log method
+  void _log(
+    LogLevel level,
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+    bool force = false,
+  }) {
+    // Get tag-specific level or use global
+    final minLevel = _config.tagLevels[tag] ?? _config.globalMinLevel;
+
+    // Check level
+    if (!force && level.severity < minLevel.severity) {
+      return;
+    }
+
+    // Create entry
+    final entry = LogEntry(
+      level: level,
+      tag: tag,
+      message: message,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+    );
+
+    // Apply tag filter
+    final filter = _config.tagFilters[tag];
+    if (filter != null && !filter(entry)) {
+      return;
+    }
+
+    // Process with tag-specific handlers
+    final tagHandlers = _config.tagHandlers[tag];
+    if (tagHandlers != null) {
+      for (final handler in tagHandlers) {
+        try {
+          handler.handle(entry);
+        } catch (e) {
+          print('Error in tag handler: $e');
+        }
+      }
+    }
+
+    // Process with global handlers
+    for (final handler in _config.globalHandlers) {
+      try {
+        handler.handle(entry);
+      } catch (e) {
+        print('Error in global handler: $e');
+      }
+    }
   }
 
-  @override
-  Future<void> close() async {
-    await _controller.close();
+  /// Log debug message
+  void debug(
+    String message, {
+    Map<String, dynamic>? extra,
+    bool force = false,
+  }) {
+    _log(LogLevel.debug, message, extra: extra, force: force);
+  }
+
+  /// Log info message
+  void info(
+    String message, {
+    Map<String, dynamic>? extra,
+    bool force = false,
+  }) {
+    _log(LogLevel.info, message, extra: extra, force: force);
+  }
+
+  /// Log success message
+  void success(
+    String message, {
+    Map<String, dynamic>? extra,
+    bool force = false,
+  }) {
+    _log(LogLevel.success, message, extra: extra, force: force);
+  }
+
+  /// Log warning message
+  void warning(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+    bool force = false,
+  }) {
+    _log(
+      LogLevel.warning,
+      message,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+      force: force,
+    );
+  }
+
+  /// Log error message
+  void error(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+    bool force = false,
+  }) {
+    _log(
+      LogLevel.error,
+      message,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+      force: force,
+    );
+  }
+
+  /// Log fatal message
+  void fatal(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? extra,
+    bool force = false,
+  }) {
+    _log(
+      LogLevel.fatal,
+      message,
+      error: error,
+      stackTrace: stackTrace,
+      extra: extra,
+      force: force,
+    );
+  }
+
+  // Static configuration methods
+
+  /// Configure global minimum log level
+  static void setMinLevel(LogLevel level) {
+    _config.globalMinLevel = level;
+  }
+
+  /// Get current global minimum level
+  static LogLevel get minLevel => _config.globalMinLevel;
+
+  /// Add a global handler (applies to all tags)
+  static void addHandler(LogHandler handler) {
+    _config.globalHandlers.add(handler);
+  }
+
+  /// Remove a global handler
+  static void removeHandler(LogHandler handler) {
+    _config.globalHandlers.remove(handler);
+  }
+
+  /// Remove all global handlers
+  static void clearHandlers() {
+    _config.globalHandlers.clear();
+  }
+
+  /// Get all global handlers
+  static List<LogHandler> get handlers =>
+      List.unmodifiable(_config.globalHandlers);
+
+  /// Set minimum level for a specific tag
+  static void setLevelForTag(String tag, LogLevel level) {
+    _config.tagLevels[tag] = level;
+  }
+
+  /// Get minimum level for a specific tag
+  static LogLevel? getLevelForTag(String tag) => _config.tagLevels[tag];
+
+  /// Remove level configuration for a tag
+  static void removeLevelForTag(String tag) {
+    _config.tagLevels.remove(tag);
+  }
+
+  /// Add a handler to a specific tag
+  static void addHandlerForTag(String tag, LogHandler handler) {
+    _config.tagHandlers.putIfAbsent(tag, () => []).add(handler);
+  }
+
+  /// Remove a handler from a specific tag
+  static void removeHandlerForTag(String tag, LogHandler handler) {
+    _config.tagHandlers[tag]?.remove(handler);
+  }
+
+  /// Remove all handlers for a specific tag
+  static void clearHandlersForTag(String tag) {
+    _config.tagHandlers[tag]?.clear();
+  }
+
+  /// Get all handlers for a specific tag
+  static List<LogHandler>? getHandlersForTag(String tag) {
+    final handlers = _config.tagHandlers[tag];
+    return handlers != null ? List.unmodifiable(handlers) : null;
+  }
+
+  /// Set filter for a specific tag
+  static void setFilterForTag(String tag, LogFilter filter) {
+    _config.tagFilters[tag] = filter;
+  }
+
+  /// Get filter for a specific tag
+  static LogFilter? getFilterForTag(String tag) => _config.tagFilters[tag];
+
+  /// Remove filter for a tag
+  static void removeFilterForTag(String tag) {
+    _config.tagFilters.remove(tag);
+  }
+
+  /// Remove all configurations for a tag
+  static void removeTag(String tag) {
+    _config.tagLevels.remove(tag);
+    _config.tagHandlers.remove(tag);
+    _config.tagFilters.remove(tag);
+  }
+
+  /// Get all configured tags
+  static List<String> get configuredTags {
+    return {
+      ..._config.tagLevels.keys,
+      ..._config.tagHandlers.keys,
+      ..._config.tagFilters.keys,
+    }.toList();
+  }
+
+  /// Flush all handlers
+  static Future<void> flush() async {
+    final futures = <Future>[];
+
+    for (final handler in _config.globalHandlers) {
+      futures.add(handler.flush());
+    }
+
+    for (final handlers in _config.tagHandlers.values) {
+      for (final handler in handlers) {
+        futures.add(handler.flush());
+      }
+    }
+
+    await Future.wait(futures);
+  }
+
+  /// Close all handlers and clear configurations
+  static Future<void> close() async {
+    final futures = <Future>[];
+
+    for (final handler in _config.globalHandlers) {
+      futures.add(handler.close());
+    }
+
+    for (final handlers in _config.tagHandlers.values) {
+      for (final handler in handlers) {
+        futures.add(handler.close());
+      }
+    }
+
+    await Future.wait(futures);
+
+    _config.globalHandlers.clear();
+    _config.tagLevels.clear();
+    _config.tagHandlers.clear();
+    _config.tagFilters.clear();
   }
 }

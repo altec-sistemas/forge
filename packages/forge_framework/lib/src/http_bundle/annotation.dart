@@ -23,6 +23,7 @@ class Route {
   const Route.patch([this.path = '']) : method = const ['PATCH'];
   const Route.head([this.path = '']) : method = const ['HEAD'];
   const Route.options([this.path = '']) : method = const ['OPTIONS'];
+  const Route.mount([this.path = '']) : method = const ['MOUNT'];
 }
 
 @Target({TargetKind.parameter})

@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:forge_core/forge_core.dart';
 
 import 'http_bundle/http_bundle.dart';
+export 'security_bundle/security_bundle.dart';
+export 'http_bundle/socket_bundle.dart';
+
+const _log = Logger('Kernel');
 
 /// The core application kernel that manages bundles, runners, and the dependency container.
 ///
@@ -15,10 +19,9 @@ abstract class Kernel extends BaseKernel {
   /// Creates a new kernel instance for the specified environment.
   ///
   /// [env] typically represents the application environment (e.g., 'dev', 'prod', 'test').
-  factory Kernel([String? env, LoggerManager? logger]) =>
-      _KernelImpl(env ?? 'prod', logger)
-        ..addBundle(CoreBundle())
-        ..addBundle(HttpBundle());
+  factory Kernel([String? env]) => _KernelImpl(env ?? 'prod')
+    ..addBundle(CoreBundle())
+    ..addBundle(HttpBundle());
 
   /// Adds a runner to be executed when the kernel runs.
   void addRunner(Runner runner);
@@ -57,11 +60,7 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
   @override
   final String env;
 
-  @override
-  final LoggerManager logger;
-
-  _KernelImpl(this.env, [LoggerManager? logger])
-    : logger = logger ?? LoggerManager();
+  _KernelImpl(this.env);
 
   @override
   void addRunner(Runner runner) {
@@ -86,7 +85,7 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
     }
 
     await boot();
-    await eventDispatcher.dispatch(KernelRunEvent(this, args));
+    await eventBus.dispatch(KernelRunEvent(this, args));
 
     await runZonedGuarded(
       () {
@@ -95,11 +94,11 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
             try {
               return await runner.run(args);
             } catch (e, s) {
-              await eventDispatcher.dispatch(
+              await eventBus.dispatch(
                 KernelErrorEvent(this, e, s),
               );
 
-              logger.error(
+              _log.error(
                 'Unhandled exception in Runner: ${runner.runtimeType}',
                 error: e,
                 stackTrace: s,
@@ -109,11 +108,11 @@ class _KernelImpl with BaseKernelMixin implements Kernel {
         );
       },
       (error, stack) async {
-        await eventDispatcher.dispatch(
+        await eventBus.dispatch(
           KernelErrorEvent(this, error, stack),
         );
 
-        logger.error(
+        _log.error(
           'Unhandled exception in Kernel',
           error: error,
           stackTrace: stack,

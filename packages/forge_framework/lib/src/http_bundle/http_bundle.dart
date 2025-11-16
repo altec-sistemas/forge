@@ -13,6 +13,8 @@ export 'exception/http_exception.dart';
 export 'http/request_context.dart';
 export 'http/response.dart';
 export 'http/argument_resolver.dart';
+export 'socket/socket_handler.dart';
+export 'socket/web_socket_client.dart';
 
 class HttpBundle extends Bundle {
   @override
@@ -66,7 +68,6 @@ class HttpBundle extends Bundle {
       return HttpKernel(
         router: i<Router>(),
         eventBus: i<EventBus>(),
-        logger: i<LoggerManager>().channel('http'),
         debug: i<String>('env') == 'dev',
       );
     });
@@ -75,7 +76,7 @@ class HttpBundle extends Bundle {
       return HttpRunner(
         httpKernel: i<HttpKernel>(),
         eventBus: i<EventBus>(),
-        config: (i.contains<HttpConfig>()) ? i<HttpConfig>() : null,
+        config: i.tryGet<HttpConfig>(),
       );
     });
   }
@@ -132,13 +133,17 @@ class HttpBundle extends Bundle {
         );
 
         for (final httpMethod in routeAnnotation.method) {
-          router.add(httpMethod, fullPath, handler);
+          if (httpMethod == 'MOUNT') {
+            router.mount(fullPath, handler);
+          } else {
+            router.add(httpMethod, fullPath, handler);
+          }
         }
       }
     }
   }
 
-  Function _createHandler(
+  Handler _createHandler(
     ArgumentResolver argumentResolver,
     ClassMetadata controllerMeta,
     MethodMetadata methodMeta,
@@ -150,6 +155,10 @@ class HttpBundle extends Bundle {
       );
 
       final method = methodMeta.getMethod(instance);
+
+      if (methodMeta.typeMetadata.type == Handler) {
+        return method(request);
+      }
 
       final arguments = await argumentResolver.resolveArgumentsFor(
         request,

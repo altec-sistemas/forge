@@ -26,7 +26,13 @@ abstract class Builder<T extends Builder<T>> {
   final Database database;
 
   @internal
-  Connection get connection => database.connection;
+  Connection get connection {
+    if (database.connection == null) {
+      throw ConnectionException(message: 'No active database connection.');
+    }
+
+    return database.connection!;
+  }
 
   @internal
   SqlDialect get dialect => database.dialect;

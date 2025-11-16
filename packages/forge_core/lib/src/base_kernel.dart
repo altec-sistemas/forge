@@ -1,6 +1,12 @@
 import 'dart:async';
 import '../forge_core.dart';
 
+const _log = Logger('kernel');
+
+abstract interface class Disposable {
+  void dispose();
+}
+
 /// Base interface for all kernels (Application and Kernel).
 abstract class BaseKernel {
   /// The immutable dependency container.
@@ -10,10 +16,7 @@ abstract class BaseKernel {
   String get env;
 
   /// Event bus for dispatching events
-  EventBus get eventDispatcher;
-
-  /// Logger instance
-  LoggerManager get logger;
+  EventBus get eventBus;
 
   /// Registers a bundle to be built and initialized with the kernel.
   void addBundle(Bundle bundle);
@@ -37,6 +40,8 @@ abstract class BaseKernel {
   Future<void> onBoot();
 }
 
+const logTag = 'kernel';
+
 /// Mixin that implements the common logic of BaseKernel.
 mixin BaseKernelMixin implements BaseKernel {
   final List<Bundle> _bundles = [];
@@ -45,7 +50,7 @@ mixin BaseKernelMixin implements BaseKernel {
   Injector? _injector;
 
   @override
-  final EventBus eventDispatcher = EventBus();
+  final EventBus eventBus = EventBus();
 
   @override
   Injector get injector {
@@ -72,21 +77,14 @@ mixin BaseKernelMixin implements BaseKernel {
       throw KernelException('Kernel is already built');
     }
 
-    logger.debug('Building kernel', extra: {'env': env});
+    _log.debug('Building kernel', extra: {'env': env});
 
     final builder = InjectorBuilder();
 
     // Register core services first
     registerCoreServices(builder);
 
-    builder.registerFactory<EventBus>((c) => eventDispatcher);
-    builder.registerFactory<LoggerManager>((c) => logger);
-    for (final channel in logger.channelNames) {
-      builder.registerSingleton<Logger>(
-        (c) => logger.channel(channel),
-        name: "log.$channel",
-      );
-    }
+    builder.registerFactory<EventBus>((c) => eventBus);
     builder.registerSingleton<Injector>((i) => _injector!);
     builder.registerInstance<String>(env, name: 'env');
 
@@ -124,14 +122,14 @@ mixin BaseKernelMixin implements BaseKernel {
       throw KernelException('Kernel is already booted');
     }
 
-    logger.debug('Booting kernel');
+    _log.debug('Booting kernel');
 
     _booted = true;
 
     // Register event subscribers
     final eventSubscribers = injector.all<EventSubscriber>();
     for (final subscriber in eventSubscribers) {
-      eventDispatcher.addSubscriber(subscriber);
+      eventBus.addSubscriber(subscriber);
     }
 
     // Register event listeners from metadata
@@ -145,7 +143,7 @@ mixin BaseKernelMixin implements BaseKernel {
     // Custom boot hook
     await onBoot();
 
-    logger.info('Kernel booted successfully');
+    _log.info('Kernel booted successfully');
   }
 
   /// Executes code within a guarded zone that catches errors and dispatches them as events.
@@ -165,13 +163,13 @@ mixin BaseKernelMixin implements BaseKernel {
             completer.complete();
           }
         } catch (error, stackTrace) {
-          logger.error(
+          _log.error(
             'Error during task execution',
             error: error,
             stackTrace: stackTrace,
           );
 
-          await eventDispatcher.dispatch(
+          await eventBus.dispatch(
             KernelErrorEvent(this, error, stackTrace),
           );
 
@@ -183,13 +181,13 @@ mixin BaseKernelMixin implements BaseKernel {
         }
       },
       (error, stackTrace) async {
-        logger.error(
+        _log.error(
           'Unhandled error in zone',
           error: error,
           stackTrace: stackTrace,
         );
 
-        await eventDispatcher.dispatch(
+        await eventBus.dispatch(
           KernelErrorEvent(this, error, stackTrace),
         );
 
@@ -235,7 +233,7 @@ mixin BaseKernelMixin implements BaseKernel {
       final parameter = methodMeta.parameters!.first;
 
       parameter.typeMetadata.captureGeneric(<T>() {
-        eventDispatcher.on<T>((event) async {
+        eventBus.on<T>((event) async {
           await Function.apply(method, [event]);
         }, priority: priority);
       });

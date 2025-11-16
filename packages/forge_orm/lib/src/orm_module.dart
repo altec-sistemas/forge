@@ -3,6 +3,8 @@ import '../forge_orm.dart';
 import 'connection/mysql_connection.dart';
 import 'connection/sqllite_connection.dart';
 
+final _log = Logger('Orm');
+
 @Module()
 class OrmModule {
   /// Cria a factory de conexão
@@ -60,7 +62,11 @@ class OrmModule {
   /// Fecha conexões no shutdown
   @Boot()
   Future<void> setupDatabaseConnection(Database database) async {
-    await database.connect();
+    try {
+      await database.connect();
+    } catch (e) {
+      _log.error('Error connecting to database', error: e);
+    }
   }
 }
 

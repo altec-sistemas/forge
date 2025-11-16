@@ -23,3 +23,4 @@ export 'src/core_bundle.dart';
 export 'src/validator/constraint_extractor.dart';
 export 'src/logger.dart';
 export 'src/injector/proxy_system.dart';
+export 'src/socket/socket_client.dart';

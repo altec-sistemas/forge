@@ -258,10 +258,7 @@ class CodeEmitter {
             returnType.isDartAsyncFuture || returnType.isDartAsyncFutureOr;
 
         _buffer.write('    ');
-        if (isAsync) {
-          _buffer.write('await ');
-        }
-        _buffer.write('i<$moduleType>().${method.name3}');
+        _buffer.write('await i<$moduleType>().${method.name3}');
 
         if (method is MethodElement2) {
           _buffer.write('(');

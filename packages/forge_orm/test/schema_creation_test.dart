@@ -83,7 +83,7 @@ void main() {
     });
 
     test('should create indexes for unique columns', () async {
-      final schemaCreator = SchemaCreator(
+      final schemaCreator = Migrator(
         helper.database,
         helper.schemaResolver,
       );
@@ -111,7 +111,7 @@ void main() {
     });
 
     test('should drop tables successfully', () async {
-      final schemaCreator = SchemaCreator(
+      final schemaCreator = Migrator(
         helper.database,
         helper.schemaResolver,
       );
@@ -123,7 +123,7 @@ void main() {
     });
 
     test('should check if table exists', () async {
-      final schemaCreator = SchemaCreator(
+      final schemaCreator = Migrator(
         helper.database,
         helper.schemaResolver,
       );
@@ -136,7 +136,7 @@ void main() {
     });
 
     test('should create table only if not exists', () async {
-      final schemaCreator = SchemaCreator(
+      final schemaCreator = Migrator(
         helper.database,
         helper.schemaResolver,
       );

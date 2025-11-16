@@ -2,23 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:forge_core/forge_core.dart';
 
-/// Flutter application kernel that manages the Flutter app lifecycle.
-///
-/// The Application class extends [BaseKernel] and provides Flutter-specific
-/// functionality for building and running a Flutter application with
-/// dependency injection and bundle management.
+/// Flutter application kernel que gerencia o ciclo de vida da aplicação.
 abstract class Application extends BaseKernel {
-  /// Creates a new Application instance for the specified environment.
-  ///
-  /// [env] typically represents the application environment (e.g., 'dev', 'prod', 'test').
-  factory Application([String? env]) => _ApplicationImpl(env ?? 'prod');
+  factory Application([String? env]) =>
+      _ApplicationImpl(env ?? 'prod')..addBundle(CoreBundle());
 
-  /// Global Application instance.
   static Application? _instance;
 
-  /// Accesses the global Application instance.
-  ///
-  /// Throws [KernelException] if the Application has not been created yet.
   static Application get instance {
     if (_instance == null) {
       throw KernelException(
@@ -29,35 +19,36 @@ abstract class Application extends BaseKernel {
     return _instance!;
   }
 
-  /// Checks if the Application has already been initialized.
   static bool get hasInstance => _instance != null;
 
-  /// Builds, boots, and runs the Flutter application.
-  ///
-  /// [main] is a function that receives the [Injector] and returns the root widget.
-  ///
-  /// This method:
-  /// 1. Builds the dependency container
-  /// 2. Boots all bundles
-  /// 3. Calls Flutter's runApp with the widget returned by [main]
-  ///
-  /// Any errors during execution are caught and dispatched as [KernelErrorEvent].
-  ///
-  /// Throws [KernelException] if called more than once.
+  /// Limpa a instância atual (útil para hot restart)
+  static void reset() {
+    if (_instance != null) {
+      (_instance as _ApplicationImpl)._dispose();
+      _instance = null;
+    }
+  }
+
   Future<void> run(Widget Function(Injector i) main);
 }
+
+const _log = Logger('Application');
 
 class _ApplicationImpl with BaseKernelMixin implements Application {
   @override
   final String env;
 
   bool _running = false;
+  bool _disposed = false;
+  final List<Disposable> _disposables = [];
 
-  @override
-  final LoggerManager logger;
+  _ApplicationImpl(this.env) {
+    // Limpa a instância anterior antes de criar uma nova
+    if (Application._instance != null) {
+      _log.info('Limpando instância anterior do Application');
+      Application.reset();
+    }
 
-  _ApplicationImpl(this.env, [LoggerManager? logger])
-    : logger = logger ?? LoggerManager() {
     Application._instance = this;
   }
 
@@ -69,30 +60,103 @@ class _ApplicationImpl with BaseKernelMixin implements Application {
 
   @override
   Future<void> run(Widget Function(Injector i) main) async {
+    if (_disposed) {
+      throw KernelException('Cannot run a disposed Application');
+    }
+
     if (_running) {
       throw KernelException('Application is already running');
     }
 
     _running = true;
 
-    logger.info('Starting Flutter application', extra: {'env': env});
+    _log.info('Starting Flutter application', extra: {'env': env});
 
     await build();
     await boot();
 
-    return runGuarded(() async {
-      logger.info('Launching Flutter UI');
-      runApp(main(injector));
-    });
+    _registerDisposables();
+
+    return runApp(
+      _ApplicationLifecycleWrapper(onDispose: _dispose, child: main(injector)),
+    );
+  }
+
+  void _registerDisposables() {
+    try {
+      // Procura por todos os serviços que implementam Disposable
+      final bindings = injector.all<Disposable>();
+
+      for (final binding in bindings) {
+        _disposables.add(binding);
+        _log.info('Registrado disposable: ${binding.runtimeType}');
+      }
+    } catch (e) {
+      _log.warning('Erro ao registrar disposables: $e');
+    }
+  }
+
+  void _dispose() {
+    if (_disposed) return;
+
+    _log.info('Disposing Application e limpando recursos');
+    _disposed = true;
+    _running = false;
+
+    // Dispõe todos os serviços registrados
+    for (final disposable in _disposables) {
+      try {
+        disposable.dispose();
+      } catch (e) {
+        _log.warning('Erro ao dispor serviço: $e');
+      }
+    }
+
+    _disposables.clear();
   }
 }
 
-/// Global shortcut to access the Application injector.
-///
-/// Throws [KernelException] if the Application has not been created yet.
-Injector get injector => Application.instance.injector;
+/// Widget que detecta quando o app é reconstruído (hot restart)
+class _ApplicationLifecycleWrapper extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDispose;
 
-/// Global shortcut to access the Application logger.
-///
-/// Throws [KernelException] if the Application has not been created yet.
-Logger get logger => Application.instance.logger;
+  const _ApplicationLifecycleWrapper({
+    required this.child,
+    required this.onDispose,
+  });
+
+  @override
+  State<_ApplicationLifecycleWrapper> createState() =>
+      _ApplicationLifecycleWrapperState();
+}
+
+class _ApplicationLifecycleWrapperState
+    extends State<_ApplicationLifecycleWrapper>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _log.info('Application lifecycle iniciado');
+  }
+
+  @override
+  void dispose() {
+    _log.info('Application lifecycle dispose chamado (hot restart detectado)');
+    WidgetsBinding.instance.removeObserver(this);
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _log.info('App lifecycle mudou para: $state');
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+/// Global shortcut to access the Application injector.
+Injector get injector => Application.instance.injector;

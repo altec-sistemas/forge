@@ -18,7 +18,7 @@ class OrmConfig {
   ) async {
     await database.connect();
 
-    final migrator = SchemaCreator(database, schemaResolver);
+    final migrator = Migrator(database, schemaResolver);
     await migrator.createTables([User]);
 
     logger.success('Tables created successfully.');

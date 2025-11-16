@@ -15,5 +15,5 @@ export 'src/orm_bundle.dart';
 export 'src/orm_module.dart';
 export 'src/database_config.dart';
 export 'src/metadata_schema_resolver.dart';
-export 'src/schema_creator.dart';
+export 'src/migrator.dart';
 export 'src/database_exception.dart';

@@ -6,7 +6,7 @@ resolution: workspace
 # repository: https://github.com/my_org/my_repo
 
 environment:
-  sdk: ^3.9.0
+  sdk: ^3.8.1
 
 # Add regular dependencies here.
 dependencies:
@@ -14,6 +14,7 @@ dependencies:
   meta: ^1.16.0
   path: ^1.9.1
   phone_numbers_parser: ^9.0.15
+  web_socket_channel: ^3.0.3
   # path: ^1.9.0
 
 dev_dependencies:

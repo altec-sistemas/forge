@@ -80,7 +80,7 @@ class TestHelper {
 
   /// Creates all necessary tables
   Future<void> createTables() async {
-    final schemaCreator = SchemaCreator(database, schemaResolver);
+    final schemaCreator = Migrator(database, schemaResolver);
 
     await schemaCreator.createTablesComplete([
       User,

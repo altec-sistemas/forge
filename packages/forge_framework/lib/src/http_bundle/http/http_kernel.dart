@@ -2,16 +2,16 @@ import 'dart:async';
 
 import '../../../forge_framework.dart';
 
+const _log = Logger('HttpKernel');
+
 class HttpKernel {
   final EventBus eventBus;
   final Router router;
-  final Logger logger;
   final bool debug;
 
   HttpKernel({
     required this.eventBus,
     required this.router,
-    required this.logger,
     this.debug = false,
   });
 
@@ -54,7 +54,7 @@ class HttpKernel {
         }
 
         if (error is! HttpException && error is! ValidationException) {
-          logger.error(
+          _log.error(
             'Exception caught in HttpKernel: $error',
             error: error,
             stackTrace: stackTrace,

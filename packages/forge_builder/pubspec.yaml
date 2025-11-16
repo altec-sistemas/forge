@@ -5,7 +5,7 @@ repository: https://github.com/altec-sistemas/forge
 resolution: workspace
 
 environment:
-  sdk: ^3.9.0
+  sdk: ^3.8.1
 
 dependencies:
   analyzer: ^7.7.1

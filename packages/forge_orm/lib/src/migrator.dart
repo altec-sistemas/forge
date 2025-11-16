@@ -1,16 +1,17 @@
-import 'package:forge_core/forge_core.dart';
+import 'package:forge_framework/forge_framework.dart';
+import 'package:forge_orm/forge_orm.dart';
 
-import '../forge_orm.dart';
 import 'dialect/sql_dialect.dart';
 
-class SchemaCreator {
+const _logger = Logger('Migrator');
+
+class Migrator {
   final Database database;
   final MetadataSchemaResolver schemaResolver;
-  final Logger? _logger;
 
   SqlDialect get dialect => database.dialect;
 
-  SchemaCreator(this.database, this.schemaResolver, [this._logger]);
+  Migrator(this.database, this.schemaResolver);
 
   Future<void> createTables(List<Type> entities) async {
     for (final entityType in entities) {
@@ -512,9 +513,8 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
         // SQLite does not support ALTER COLUMN directly
         // Would need to create new table, copy data, drop old, rename
         // For now, log a detailed warning
-        _logger?.warning(
+        _logger.warning(
           'SQLite does not support ALTER COLUMN. Manual migration required or table recreation needed.',
-          context: 'SchemaCreator',
           extra: {
             'table': tableName,
             'column': columnInfo.columnName,
@@ -534,19 +534,19 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
     final schema = schemaResolver.resolveByType(entityType);
 
     if (verbose) {
-      _logger?.debug('Checking table: ${schema.tableName}');
+      _logger.debug('Checking table: ${schema.tableName}');
     }
 
     // Check if table exists
     if (!await tableExists(schema.tableName)) {
       // If it doesn't exist, create the table
       if (verbose) {
-        _logger?.debug('Table ${schema.tableName} does not exist. Creating...');
+        _logger.debug('Table ${schema.tableName} does not exist. Creating...');
       }
       await createTableIfNotExists(entityType);
       await createIndexes(schema);
       if (verbose) {
-        _logger?.debug('Table ${schema.tableName} created successfully');
+        _logger.debug('Table ${schema.tableName} created successfully');
       }
       return;
     }
@@ -559,7 +559,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
 
     if (!diff.hasChanges) {
       if (verbose) {
-        _logger?.info('Table ${schema.tableName} is up to date.');
+        _logger.info('Table ${schema.tableName} is up to date.');
       }
       return;
     }
@@ -567,7 +567,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
     // Generate and execute statements to add columns
     if (diff.columnsToAdd.isNotEmpty) {
       if (verbose) {
-        _logger?.debug(
+        _logger.debug(
           'Adding ${diff.columnsToAdd.length} column(s) to ${schema.tableName}',
           extra: {
             'columns': diff.columnsToAdd
@@ -599,7 +599,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
     // Generate and execute statements to modify columns
     if (diff.columnsToModify.isNotEmpty) {
       if (verbose) {
-        _logger?.debug(
+        _logger.debug(
           'Modifying ${diff.columnsToModify.length} column(s) in ${schema.tableName}',
           extra: {
             'modifications': diff.columnsToModify
@@ -635,7 +635,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
     await createIndexes(schema);
 
     if (verbose) {
-      _logger?.success('Migration completed for table ${schema.tableName}');
+      _logger.success('Migration completed for table ${schema.tableName}');
     }
   }
 
@@ -645,14 +645,14 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
     bool verbose = true,
   }) async {
     if (verbose) {
-      _logger?.debug('Starting database migration...');
+      _logger.debug('Starting database migration...');
     }
 
     for (final entityType in entities) {
       await migrateTable(entityType, verbose: verbose);
     }
 
-    _logger?.success('All migrations completed successfully!');
+    _logger.success('All migrations completed successfully!');
   }
 }
 

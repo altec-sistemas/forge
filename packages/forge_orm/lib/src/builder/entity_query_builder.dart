@@ -1,3 +1,4 @@
+import 'package:forge_core/forge_core.dart';
 import 'package:meta/meta.dart';
 import '../orm.dart';
 import '../repository.dart';

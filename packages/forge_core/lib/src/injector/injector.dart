@@ -117,6 +117,8 @@ abstract class Injector {
   /// Throws [StateError] if the service is registered as async-only.
   T get<T>([String? name]);
 
+  T? tryGet<T>([String? name]);
+
   /// Resolves and returns an async instance of [T].
   ///
   /// Use this method to resolve services registered with [registerAsyncFactory]
@@ -263,6 +265,14 @@ class _InjectorImpl implements Injector {
     final registration = _services[key];
 
     if (registration == null) {
+      /// No registration found for the requested service
+      /// Lest try finding it in the all method
+      final allInstances = all<T>();
+
+      if (allInstances.isNotEmpty) {
+        return allInstances.first;
+      }
+
       throw ServiceNotFoundException(
         T,
         resolutionStack: const [],
@@ -277,6 +287,11 @@ class _InjectorImpl implements Injector {
     }
 
     return _resolveWithStack<T>(key, registration, []);
+  }
+
+  @override
+  T? tryGet<T>([String? name]) {
+    return contains<T>(name) ? get<T>(name) : null;
   }
 
   T _resolveWithStack<T>(
@@ -371,7 +386,18 @@ class _InjectorImpl implements Injector {
   bool contains<T>([String? name]) {
     final key = _ServiceKey(T, name);
     final registration = _services[key];
-    return registration != null && !registration.isAsync;
+
+    if (registration == null) {
+      return false;
+    }
+
+    final allInstances = all<T>();
+
+    if (allInstances.isNotEmpty) {
+      return true;
+    }
+
+    return !registration.isAsync;
   }
 
   @override
@@ -412,6 +438,14 @@ class _ResolutionContextInjector implements Injector {
     final registration = _actualInjector._services[key];
 
     if (registration == null) {
+      /// No registration found for the requested service
+      /// Lest try finding it in the all method
+      final allInstances = all<T>();
+
+      if (allInstances.isNotEmpty) {
+        return allInstances.first;
+      }
+
       throw ServiceNotFoundException(
         T,
         resolutionStack: _resolutionStack,
@@ -432,6 +466,11 @@ class _ResolutionContextInjector implements Injector {
       registration,
       _resolutionStack,
     );
+  }
+
+  @override
+  T? tryGet<T>([String? name]) {
+    return contains<T>(name) ? get<T>(name) : null;
   }
 
   @override

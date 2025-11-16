@@ -45,10 +45,7 @@ class MySQLDatabase implements Database {
 
   @override
   Connection get connection {
-    if (_connection == null || _connection!.connected == false) {
-      throw Exception('No active database connection. Call connect() first.');
-    }
-    return MySQLConnection(_connection!, _dialect);
+    return MySQLConnection(_connection, _dialect);
   }
 
   @override
@@ -67,7 +64,7 @@ class MySQLDatabase implements Database {
 }
 
 class MySQLConnection implements Connection {
-  final mysql.MySQLConnection _connection;
+  final mysql.MySQLConnection? _connection;
   final MySqlDialect _dialect;
 
   late final EventBus? eventBus;
@@ -75,7 +72,7 @@ class MySQLConnection implements Connection {
   MySQLConnection(this._connection, this._dialect);
 
   @override
-  bool get isConnected => _connection.connected;
+  bool get isConnected => _connection != null && _connection!.connected;
 
   @override
   SqlDialect get dialect => _dialect;
@@ -87,15 +84,15 @@ class MySQLConnection implements Connection {
 
   @override
   Future<void> connect() async {
-    if (!_connection.connected) {
-      await _connection.connect();
+    if (_connection != null && !_connection!.connected) {
+      await _connection!.connect();
     }
   }
 
   @override
   Future<void> disconnect() async {
-    if (_connection.connected) {
-      await _connection.close();
+    if (_connection != null && _connection!.connected) {
+      await _connection!.close();
     }
   }
 
@@ -103,7 +100,7 @@ class MySQLConnection implements Connection {
   Future<QueryResult> execute(String query, [List<dynamic>? parameters]) async {
     try {
       if (parameters == null || parameters.isEmpty) {
-        return MySQLQueryResult(await _connection.execute(query));
+        return MySQLQueryResult(await _connection!.execute(query));
       }
 
       int index = 0;
@@ -117,7 +114,7 @@ class MySQLConnection implements Connection {
       }
 
       return MySQLQueryResult(
-        await _connection.execute(processedQuery, processedParams),
+        await _connection!.execute(processedQuery, processedParams),
       );
     } catch (e) {
       throw MySqlExceptionParser.parse(e, query, parameters);
