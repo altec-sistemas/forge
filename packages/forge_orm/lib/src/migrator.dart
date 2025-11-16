@@ -1,4 +1,4 @@
-import 'package:forge_framework/forge_framework.dart';
+import 'package:forge_core/forge_core.dart';
 import 'package:forge_orm/forge_orm.dart';
 
 import 'dialect/sql_dialect.dart';

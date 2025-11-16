@@ -1,3 +1,7 @@
+## 0.1.5
+
+- Some improvements.
+
 ## 0.1.4
 
 - Added support for disable http server

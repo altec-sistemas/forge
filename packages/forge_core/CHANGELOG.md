@@ -1,3 +1,7 @@
+## 0.1.8
+
+- Some improvements.
+
 ## 0.1.7
 
 - Improved metadata registry

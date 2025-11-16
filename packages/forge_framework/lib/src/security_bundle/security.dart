@@ -1,9 +1,6 @@
 import 'dart:async';
 
 import '../../forge_framework.dart';
-import 'model/access_control.dart';
-import 'model/firewall.dart';
-import 'model/passport.dart';
 
 abstract class Authenticator {
   FutureOr<Passport?> authenticate(Request request);

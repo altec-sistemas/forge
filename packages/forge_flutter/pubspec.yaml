@@ -1,6 +1,7 @@
 name: forge_flutter
-description: "A new Flutter plugin project."
+description: "A Forge framework plugin to develop Flutter applications faster."
 version: 0.0.1
+repository: https://github.com/altec-sistemas/forge
 resolution: workspace
 homepage:
 

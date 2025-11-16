@@ -1,6 +1,5 @@
 import '../model/access_control.dart';
 import '../model/firewall.dart';
-import '../security.dart';
 
 class AccessControlConfig {
   final String path;

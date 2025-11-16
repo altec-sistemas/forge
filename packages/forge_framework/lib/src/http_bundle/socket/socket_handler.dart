@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
