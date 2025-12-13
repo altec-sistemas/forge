@@ -132,26 +132,18 @@ class _ApplicationLifecycleWrapper extends StatefulWidget {
 }
 
 class _ApplicationLifecycleWrapperState
-    extends State<_ApplicationLifecycleWrapper>
-    with WidgetsBindingObserver {
+    extends State<_ApplicationLifecycleWrapper> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _log.info('Application lifecycle iniciado');
   }
 
   @override
   void dispose() {
     _log.info('Application lifecycle dispose chamado (hot restart detectado)');
-    WidgetsBinding.instance.removeObserver(this);
     widget.onDispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _log.info('App lifecycle mudou para: $state');
   }
 
   @override

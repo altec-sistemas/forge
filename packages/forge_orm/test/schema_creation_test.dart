@@ -27,7 +27,7 @@ void main() {
       ];
 
       for (final table in tables) {
-        final exists = await helper.database.connection.execute(
+        final exists = await helper.database.execute(
           helper.database.dialect.getTableExistsQuery(table),
           [table],
         );

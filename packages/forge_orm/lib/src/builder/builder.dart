@@ -26,15 +26,6 @@ abstract class Builder<T extends Builder<T>> {
   final Database database;
 
   @internal
-  Connection get connection {
-    if (database.connection == null) {
-      throw ConnectionException(message: 'No active database connection.');
-    }
-
-    return database.connection!;
-  }
-
-  @internal
   SqlDialect get dialect => database.dialect;
 
   @internal
@@ -545,7 +536,7 @@ abstract class Builder<T extends Builder<T>> {
 
   Future<List<Map<String, Object?>>> get() async {
     final sql = toSql();
-    final result = await connection.execute(sql, bindings);
+    final result = await database.execute(sql, bindings);
     return result.rows;
   }
 
@@ -554,7 +545,7 @@ abstract class Builder<T extends Builder<T>> {
     final placeholders = List.filled(values.length, '?').join(', ');
     final sql = 'INSERT INTO $fromTable ($columns) VALUES ($placeholders)';
     final params = values.values.toList();
-    final result = await connection.execute(sql, params);
+    final result = await database.execute(sql, params);
     return result.insertId;
   }
 
@@ -564,7 +555,7 @@ abstract class Builder<T extends Builder<T>> {
     final insertClause = dialect.getInsertIgnoreSyntax(fromTable!);
     final sql = '$insertClause ($columns) VALUES ($placeholders)';
     final params = values.values.toList();
-    final result = await connection.execute(sql, params);
+    final result = await database.execute(sql, params);
     return result.insertId;
   }
 
@@ -573,14 +564,14 @@ abstract class Builder<T extends Builder<T>> {
     final sql =
         'UPDATE ${resolveTable(fromTable!)} SET $sets ${_buildWhereClause()}';
     final params = [...values.values, ...bindings];
-    final result = await connection.execute(sql, params);
+    final result = await database.execute(sql, params);
     return result.affectedRows;
   }
 
   Future<int> delete() async {
     final sql =
         'DELETE FROM ${resolveTable(fromTable!)} ${_buildWhereClause()}';
-    final result = await connection.execute(sql, bindings);
+    final result = await database.execute(sql, bindings);
     return result.affectedRows;
   }
 

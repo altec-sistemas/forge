@@ -1,4 +1,3 @@
-import 'package:forge_core/forge_core.dart';
 import 'package:meta/meta.dart';
 import '../orm.dart';
 import '../repository.dart';
@@ -15,8 +14,11 @@ class EntityQueryBuilder<T> extends Builder<EntityQueryBuilder<T>> {
   @internal
   final Map<String, EagerLoad> eagerLoads = {};
 
-  EntityQueryBuilder(this.repository, this.orm, [String? alias])
-    : super(orm.database) {
+  EntityQueryBuilder(
+    this.repository,
+    this.orm, [
+    String? alias,
+  ]) : super(orm.database) {
     from(repository.schema.tableName, alias);
   }
 

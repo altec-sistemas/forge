@@ -59,6 +59,12 @@ class ConstraintExtractor {
       constraints.add(typeConstraint);
     }
 
+    // Extract constraints from @Mappable types
+    final mappableConstraint = _extractMappableConstraint(getter.typeMetadata);
+    if (mappableConstraint != null) {
+      constraints.add(mappableConstraint);
+    }
+
     final annotationConstraints = _extractConstraintsFromAnnotations(getter);
     constraints.addAll(annotationConstraints);
 
@@ -89,6 +95,18 @@ class ConstraintExtractor {
 
     if (type == List || _isListType(type)) {
       return const IsList();
+    }
+
+    return null;
+  }
+
+  /// Extracts constraint from types annotated with @Mappable.
+  Constraint? _extractMappableConstraint(TypeMetadata typeMetadata) {
+    final type = typeMetadata.type;
+
+    if (_registry.hasClassMetadata(type)) {
+      final classMetadata = _registry.getClassMetadata(type);
+      return _buildConstraintFromClass(classMetadata);
     }
 
     return null;

@@ -2,7 +2,7 @@ builders:
   forge_bundle:
     import: "package:forge_builder/forge_builder.dart"
     builder_factories: ["forgeBundleBuilder"]
-    build_extensions: {".dart": [".bundle.dart"]}
+    build_extensions: {"{{}}.dart": ["{{}}.bundle.dart"]}
     auto_apply: root_package
     build_to: source
     applies_builders: ["source_gen|combining_builder"]

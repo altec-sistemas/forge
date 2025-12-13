@@ -9,11 +9,13 @@ class HttpRunner implements Runner, Stoppable {
   final HttpKernel httpKernel;
   final HttpConfig? config;
   final EventBus eventBus;
+  final Injector injector;
 
   HttpRunner({
     required this.httpKernel,
     required this.eventBus,
     this.config,
+    required this.injector,
   });
 
   Future<HttpServer>? _server;

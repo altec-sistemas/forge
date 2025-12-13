@@ -1533,3 +1533,8 @@ class Inject<T> with GenericCaller<T> {
 
   const Inject({this.name});
 }
+
+class SocketEvent implements DeclarationsCapability {
+  final String name;
+  const SocketEvent(this.name);
+}

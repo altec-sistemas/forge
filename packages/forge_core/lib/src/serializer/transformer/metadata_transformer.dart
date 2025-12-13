@@ -432,6 +432,15 @@ class MetadataTransformer implements Transformer, SerializerAware {
     }
 
     if (<T>[] is List<List>) {
+      final classMeta = _getClassMetadataForList<T>();
+      if (classMeta != null) {
+        return _denormalizeList(
+          data,
+          TypeMetadata<List>([classMeta.typeMetadata]),
+          context,
+        );
+      }
+
       final enumMeta = _getEnumMetadataForList<T>();
       if (enumMeta != null) {
         return _denormalizeEnumList<T>(data, enumMeta, context);

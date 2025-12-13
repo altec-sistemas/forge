@@ -71,6 +71,8 @@ class ValidationMessageKey {
   // MD5 validations
   static const String md5Invalid = 'md5_invalid';
   static const String md5NotMatch = 'md5_not_match';
+
+  static const String urlInvalid = 'url_invalid';
 }
 
 /// Localized message provider
@@ -186,6 +188,8 @@ class DefaultValidationMessageProvider extends ValidationMessageProvider {
         ValidationMessageKey.md5Invalid: 'This value must be a valid MD5 hash.',
         ValidationMessageKey.md5NotMatch:
             'The MD5 hash does not match the expected value.',
+
+        ValidationMessageKey.urlInvalid: 'This value is not a valid URL.',
       });
 }
 
@@ -285,5 +289,7 @@ class PortugueseValidationMessageProvider extends ValidationMessageProvider {
             'Este valor deve ser um hash MD5 válido.',
         ValidationMessageKey.md5NotMatch:
             'O hash MD5 não corresponde ao esperado.',
+
+        ValidationMessageKey.urlInvalid: 'Este valor não é uma URL válida.',
       });
 }

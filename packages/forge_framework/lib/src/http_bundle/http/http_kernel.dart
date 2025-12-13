@@ -31,14 +31,6 @@ class HttpKernel {
 
         final handler = router.call;
 
-        final handlerEvent = HttpKernelHandlerEvent(context, handler);
-        await eventBus.dispatch(handlerEvent);
-
-        if (handlerEvent.response != null) {
-          completer.complete(handlerEvent.response!);
-          return;
-        }
-
         final response = await handler(context.request);
 
         final responseEvent = HttpKernelResponseEvent(context, response);

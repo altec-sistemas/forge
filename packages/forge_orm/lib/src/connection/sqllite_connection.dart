@@ -6,12 +6,11 @@ import '../dialect/sql_dialect.dart';
 import '../dialect/sqlite_dialect.dart';
 
 /// SQLite database implementation
-/// Provides connection management for SQLite databases (file-based or in-memory)
-class SqliteDatabase implements Database {
+/// Acts as the manager for the SQLite database instance.
+class SqliteDatabase extends Database {
   final String? path;
 
   sqlite.Database? _database;
-
   final SqliteDialect _dialect = SqliteDialect();
 
   SqliteDatabase({
@@ -19,14 +18,25 @@ class SqliteDatabase implements Database {
   });
 
   @override
-  Future<void> connect() async {
+  bool get isOpen => _database != null;
+
+  @override
+  SqlDialect get dialect => _dialect;
+
+  @override
+  Future<void> open() async {
+    if (isOpen) return;
+
     try {
-      _database ??= (path != null && path!.isNotEmpty)
+      _database = (path != null && path!.isNotEmpty)
           ? sqlite.sqlite3.open(path!)
           : sqlite.sqlite3.openInMemory();
+
+      // Opcional: Configurações padrão de performance/segurança
+      _database!.execute('PRAGMA foreign_keys = ON;');
     } catch (e, stackTrace) {
       throw ConnectionException(
-        message: 'Failed to connect to SQLite database: $e',
+        message: 'Failed to open SQLite database: $e',
         originalError: e,
         stackTrace: stackTrace,
       );
@@ -34,27 +44,23 @@ class SqliteDatabase implements Database {
   }
 
   @override
-  Connection get connection {
-    if (_database == null) {
-      throw ConnectionException(
-        message: 'No active database connection. Call connect() first.',
-      );
+  Future<Connection> acquireConnection() async {
+    if (!isOpen) {
+      await open();
     }
+
     return SqliteConnection(_database!, _dialect);
   }
 
   @override
-  SqlDialect get dialect => _dialect;
-
-  @override
-  Future<void> closeAllConnections() async {
+  Future<void> close() async {
     if (_database != null) {
       try {
         _database!.dispose();
         _database = null;
       } catch (e, stackTrace) {
         throw ConnectionException(
-          message: 'Failed to close database connection: $e',
+          message: 'Failed to close database: $e',
           originalError: e,
           stackTrace: stackTrace,
         );
@@ -64,62 +70,63 @@ class SqliteDatabase implements Database {
 }
 
 /// SQLite connection implementation
-/// Handles query execution and transaction management
+/// Handles query execution, event logging, and transactions.
 class SqliteConnection implements Connection {
   final sqlite.Database _database;
   final SqliteDialect _dialect;
 
-  late final EventBus? eventBus;
+  EventBus? _eventBus;
 
   SqliteConnection(this._database, this._dialect);
 
   @override
-  bool get isConnected => true;
+  String get id => 'sqlite-${identityHashCode(this)}';
 
   @override
   SqlDialect get dialect => _dialect;
 
   @override
   set withEventBus(EventBus eventBus) {
-    this.eventBus = eventBus;
+    _eventBus = eventBus;
   }
 
   @override
-  Future<void> connect() async {
-    // SQLite doesn't require explicit connection
-  }
-
-  @override
-  Future<void> disconnect() async {
-    // SQLite connections are managed by the Database instance
+  Future<void> close() async {
+    _database.dispose();
   }
 
   @override
   Future<QueryResult> execute(String query, [List<dynamic>? parameters]) async {
+    final start = DateTime.now();
     try {
-      // Execute query without parameters
-      if (parameters == null || parameters.isEmpty) {
-        final result = _database.select(query);
-        return SqliteQueryResult(
-          result,
+      final processedParams = _parseParameters(parameters ?? []);
+
+      late SqliteQueryResult result;
+
+      if (processedParams.isEmpty) {
+        final rs = _database.select(query);
+        result = SqliteQueryResult(
+          rs,
           _database.lastInsertRowId,
           _database.updatedRows,
         );
+      } else {
+        // Execute query with parameters using prepared statement
+        final stmt = _database.prepare(query);
+        try {
+          final rs = stmt.select(processedParams);
+          result = SqliteQueryResult(
+            rs,
+            _database.lastInsertRowId,
+            _database.updatedRows,
+          );
+        } finally {
+          stmt.dispose();
+        }
       }
 
-      // Execute query with parameters using prepared statement
-      final stmt = _database.prepare(query);
-
-      try {
-        final result = stmt.select(_parseParameters(parameters));
-        return SqliteQueryResult(
-          result,
-          _database.lastInsertRowId,
-          _database.updatedRows,
-        );
-      } finally {
-        stmt.dispose();
-      }
+      _logQuery(query, processedParams, start);
+      return result;
     } catch (e, stackTrace) {
       throw SqliteExceptionParser.parse(
         e,
@@ -130,12 +137,26 @@ class SqliteConnection implements Connection {
     }
   }
 
+  void _logQuery(String query, List<dynamic> params, DateTime start) {
+    if (_eventBus != null) {
+      _eventBus!.dispatch(
+        QueryExecutedEvent(
+          query: query,
+          parameters: params,
+          duration: DateTime.now().difference(start),
+        ),
+      );
+    }
+  }
+
   /// Parses parameters to SQLite-compatible types
-  /// Converts DateTime to ISO8601 string format
   List<dynamic> _parseParameters(List<dynamic> parameters) {
     return parameters.map((param) {
       if (param is DateTime) {
         return param.toIso8601String();
+      }
+      if (param is bool) {
+        return param ? 1 : 0;
       }
       return param;
     }).toList();
@@ -145,7 +166,8 @@ class SqliteConnection implements Connection {
   Future<T> transaction<T>(
     Future<T> Function(Connection connection) callback,
   ) async {
-    // Begin transaction
+    // In SQLite, transactions are serial.
+    // We execute statements directly on the shared _database instance.
     try {
       _database.execute(_dialect.getTransactionBegin());
     } catch (e, stackTrace) {
@@ -158,6 +180,8 @@ class SqliteConnection implements Connection {
     }
 
     try {
+      // We pass 'this' because in SQLite (blocking FFI),
+      // the transaction is bound to the connection thread/instance.
       final result = await callback(this);
 
       try {
@@ -183,14 +207,12 @@ class SqliteConnection implements Connection {
           stackTrace: rollbackStackTrace,
         );
       }
-
       rethrow;
     }
   }
 }
 
 /// SQLite query result implementation
-/// Wraps SQLite ResultSet with standard QueryResult interface
 class SqliteQueryResult implements QueryResult {
   final sqlite.ResultSet _result;
   final int _lastInsertId;

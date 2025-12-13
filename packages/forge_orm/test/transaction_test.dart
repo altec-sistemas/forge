@@ -36,8 +36,8 @@ void main() {
       helper.orm.entityManager.persist(user);
 
       try {
-        await helper.orm.database.connection.transaction((conn) async {
-          await helper.orm.database.connection.execute(
+        await helper.orm.database.transaction((conn) async {
+          await helper.orm.database.execute(
             'INSERT INTO users (name, email) VALUES (?, ?)',
             [user.name, user.email],
           );
@@ -88,7 +88,7 @@ void main() {
 
       try {
         // Manually create transaction that will fail
-        await helper.orm.database.connection.transaction((conn) async {
+        await helper.orm.database.transaction((conn) async {
           await conn.execute(
             'INSERT INTO users (name, email) VALUES (?, ?)',
             [user1.name, user1.email],
@@ -157,7 +157,7 @@ void main() {
       final userId = user.id!;
 
       try {
-        await helper.orm.database.connection.transaction((conn) async {
+        await helper.orm.database.transaction((conn) async {
           await conn.execute(
             'UPDATE users SET name = ? WHERE id = ?',
             ['Should Rollback', userId],
@@ -198,7 +198,7 @@ void main() {
       final userId = user.id!;
 
       try {
-        await helper.orm.database.connection.transaction((conn) async {
+        await helper.orm.database.transaction((conn) async {
           await conn.execute('DELETE FROM users WHERE id = ?', [userId]);
           throw Exception('Rollback delete');
         });

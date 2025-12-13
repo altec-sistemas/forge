@@ -110,7 +110,7 @@ class EntityPersister {
   Future<T> executeInTransaction<T>(
     Future<T> Function(Connection) action,
   ) async {
-    return await database.connection.transaction((tx) => action(tx));
+    return await database.transaction((tx) => action(tx));
   }
 
   Map<String, dynamic> _buildColumnData(

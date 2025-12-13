@@ -206,7 +206,7 @@ class EntityManagerImpl implements EntityManager {
     dynamic id,
   ) async {
     final pkColumn = schema.getColumnName(schema.primaryKey);
-    final result = await database.connection.execute(
+    final result = await database.execute(
       'SELECT * FROM ${schema.tableName} WHERE $pkColumn = ? LIMIT 1',
       [id],
     );

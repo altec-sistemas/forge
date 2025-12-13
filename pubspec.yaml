@@ -9,6 +9,7 @@ dev_dependencies:
   lints: ^6.0.0
 
 workspace:
+  - packages/forge_cli
   - packages/forge_framework
   - packages/forge_orm
   - packages/forge_orm/example

@@ -2,27 +2,31 @@ import 'package:forge_core/forge_core.dart';
 import '../forge_orm.dart';
 import 'connection/mysql_connection.dart';
 import 'connection/sqllite_connection.dart';
+import 'database_manger.dart';
 
 final _log = Logger('Orm');
 
 @Module()
 class OrmModule {
-  /// Cria a factory de conexão
-  @ProvideSingleton()
-  ConnectionFactory createConnectionFactory(Injector injector) {
-    return ConnectionFactory(
-      injector.contains<DatabaseConfig>()
-          ? injector.get<DatabaseConfig>()
-          : throw Exception(
-              '''DatabaseConfig not found in Injector. Please provide a DatabaseConfig instance to configure the database connection.''',
-            ),
-    );
-  }
-
   /// Cria e conecta o Database
   @ProvideSingleton()
-  Database createDatabase(ConnectionFactory factory) {
-    return factory.create();
+  DatabaseManager createDatabase(Injector injector) {
+    final config = injector.tryGet<DatabaseConfig>();
+    final factory = DatabaseManager(ConnectionFactory());
+
+    if (config == null) {
+      throw StateError('No DatabaseConfig found in Injector');
+    }
+
+    for (final entry in config.connections.entries) {
+      factory.register(
+        entry.key,
+        entry.value,
+        isDefault: config.defaultConnectionName == entry.key,
+      );
+    }
+
+    return factory;
   }
 
   @Provide()
@@ -48,22 +52,21 @@ class OrmModule {
   /// Cria a instância principal do ORM
   @Provide()
   Orm createOrm(
-    Database database,
+    DatabaseManager manager,
     Serializer serializer,
     MetadataSchemaResolver schemaResolver,
   ) {
     return OrmImpl(
-      database: database,
       serializer: serializer,
       schemaResolver: schemaResolver,
+      database: manager.defaultDatabase,
     );
   }
 
-  /// Fecha conexões no shutdown
   @Boot()
-  Future<void> setupDatabaseConnection(Database database) async {
+  Future<void> setupDatabaseConnection(DatabaseManager databaseManager) async {
     try {
-      await database.connect();
+      await databaseManager.connectAll();
     } catch (e) {
       _log.error('Error connecting to database', error: e);
     }
@@ -72,20 +75,16 @@ class OrmModule {
 
 /// Factory para criar conexões baseadas em URI
 class ConnectionFactory {
-  final DatabaseConfig config;
-
-  ConnectionFactory(this.config);
-
   /// Cria a instância de Database apropriada baseada na URI
-  Database create() {
-    switch (config.connection) {
+  Database create(ConnectionConfig config) {
+    switch (config) {
       case MySQLConfig mysqlConfig:
         return MySQLDatabase(
           host: mysqlConfig.host,
           port: mysqlConfig.port,
           username: mysqlConfig.username,
           password: mysqlConfig.password,
-          database: mysqlConfig.database,
+          databaseName: mysqlConfig.database,
           secure: mysqlConfig.secure,
         );
 

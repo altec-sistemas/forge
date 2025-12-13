@@ -19,7 +19,7 @@ class Migrator {
       final sql = _generateCreateTableSql(schema);
 
       try {
-        await database.connection.execute(sql);
+        await database.execute(sql);
       } catch (e) {
         throw Exception(
           'Error creating table ${schema.tableName}: $e',
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
 
         if (sql != null) {
           try {
-            await database.connection.execute(sql);
+            await database.execute(sql);
           } catch (e) {
             throw Exception(
               'Error creating index $indexName on table ${schema.tableName}: $e',
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
       final schema = schemaResolver.resolveByType(entityType);
 
       try {
-        await database.connection.execute(
+        await database.execute(
           'DROP TABLE IF EXISTS ${dialect.quoteIdentifier(schema.tableName)}',
         );
       } catch (e) {
@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
   }
 
   Future<bool> tableExists(String tableName) async {
-    final result = await database.connection.execute(
+    final result = await database.execute(
       dialect.getTableExistsQuery(tableName),
       [tableName],
     );
@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
 
     if (!await tableExists(schema.tableName)) {
       final sql = _generateCreateTableSql(schema);
-      await database.connection.execute(sql);
+      await database.execute(sql);
     }
   }
 
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
     final columns = <String, DatabaseColumnSchema>{};
 
     if (dialect.name == 'sqlite') {
-      final result = await database.connection.execute(
+      final result = await database.execute(
         'PRAGMA table_info(${dialect.quoteIdentifier(tableName)})',
       );
 
@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
         );
       }
     } else if (dialect.name == 'mysql') {
-      final result = await database.connection.execute(
+      final result = await database.execute(
         'SHOW COLUMNS FROM ${dialect.quoteIdentifier(tableName)}',
       );
 
@@ -587,7 +587,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
       for (var i = 0; i < addStatements.length; i++) {
         final statement = addStatements[i];
         try {
-          await database.connection.execute(statement);
+          await database.execute(statement);
         } catch (e) {
           throw Exception(
             'Error adding column ${diff.columnsToAdd[i].columnName} to table ${schema.tableName}: $e\nSQL: $statement',
@@ -622,7 +622,7 @@ CREATE TABLE IF NOT EXISTS ${dialect.quoteIdentifier(schema.tableName)} (
         if (statement.isEmpty) continue; // Skip empty statements (SQLite)
 
         try {
-          await database.connection.execute(statement);
+          await database.execute(statement);
         } catch (e) {
           throw Exception(
             'Error modifying column ${diff.columnsToModify[i].modelColumn.columnName} in table ${schema.tableName}: $e\nSQL: $statement',

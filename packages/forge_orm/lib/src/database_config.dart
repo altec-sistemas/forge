@@ -1,13 +1,23 @@
 class DatabaseConfig {
-  final ConnectionConfig connection;
+  final Map<String, ConnectionConfig> connections;
+  final String defaultConnectionName;
+
   final int? maxConnections;
   final Duration? timeout;
 
-  const DatabaseConfig({
-    required this.connection,
+  DatabaseConfig({
+    required this.connections,
+    required this.defaultConnectionName,
     this.maxConnections,
     this.timeout,
-  });
+  }) {
+    assert(
+      connections.containsKey(defaultConnectionName),
+      'A conexão padrão "$defaultConnectionName" não está definida em connections.',
+    );
+  }
+
+  ConnectionConfig get defaultConnection => connections[defaultConnectionName]!;
 }
 
 abstract class ConnectionConfig {}

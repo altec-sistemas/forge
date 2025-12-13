@@ -41,7 +41,7 @@ class TestHelper {
     // Select database based on environment
     database = _createDatabase();
 
-    await database.connect();
+    await database.open();
     schemaResolver = MetadataSchemaResolver(
       registry,
       UnderscoreNamingStrategy(),
@@ -64,7 +64,7 @@ class TestHelper {
     switch (_databaseType) {
       case 'mysql':
         return MySQLDatabase(
-          database: Platform.environment['MYSQL_DATABASE'] ?? 'test_db',
+          databaseName: Platform.environment['MYSQL_DATABASE'] ?? 'test_db',
           host: Platform.environment['MYSQL_HOST'] ?? 'localhost',
           port: int.parse(Platform.environment['MYSQL_PORT'] ?? '3306'),
           username: Platform.environment['MYSQL_USER'] ?? 'test_user',
@@ -106,9 +106,9 @@ class TestHelper {
     for (final table in tables) {
       try {
         if (_databaseType == 'sqlite') {
-          await database.connection.execute('DELETE FROM $table');
+          await database.execute('DELETE FROM $table');
         } else {
-          await database.connection.execute('TRUNCATE TABLE $table');
+          await database.execute('TRUNCATE TABLE $table');
         }
       } catch (_) {}
     }
@@ -116,7 +116,7 @@ class TestHelper {
 
   /// Closes connections
   Future<void> teardown() async {
-    await database.closeAllConnections();
+    await database.close();
   }
 
   /// Inserts basic test data
@@ -158,7 +158,7 @@ class TestHelper {
 
   /// Executes a SQL query directly
   Future<QueryResult> executeRaw(String sql, [List<dynamic>? params]) {
-    return database.connection.execute(sql, params);
+    return database.execute(sql, params);
   }
 
   /// Counts records in a table

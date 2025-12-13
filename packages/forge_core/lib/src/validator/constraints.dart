@@ -102,9 +102,9 @@ class All extends Constraint {
 /// Marks a field as optional (field can be null or missing)
 @Target({TargetKind.getter, TargetKind.field})
 class Optional extends Constraint {
-  final Constraint constraint;
+  final Constraint? constraint;
 
-  const Optional(this.constraint);
+  const Optional([this.constraint = null]);
 
   factory Optional.all(List<Constraint> constraints) =>
       Optional(All(constraints));
@@ -114,7 +114,7 @@ class Optional extends Constraint {
   @override
   void validate(dynamic value, ValidationContext context) {
     if (value == null) return;
-    constraint.validate(value, context);
+    constraint?.validate(value, context);
   }
 }
 
@@ -934,6 +934,31 @@ class Md5 extends Constraint {
     if (!hex32.hasMatch(normalized)) {
       context.addViolation(
         ValidationMessageKey.md5Invalid,
+        message: message,
+        value: value,
+      );
+    }
+  }
+}
+
+const url = Url();
+
+class Url extends Constraint {
+  final String? message;
+
+  const Url({this.message});
+
+  @override
+  void validate(dynamic value, ValidationContext context) {
+    if (value == null) return;
+    if (value is! String) return;
+
+    final normalized = value.trim();
+    final uri = Uri.tryParse(normalized);
+
+    if (uri == null || !(uri.hasScheme && uri.hasAuthority)) {
+      context.addViolation(
+        ValidationMessageKey.urlInvalid,
         message: message,
         value: value,
       );

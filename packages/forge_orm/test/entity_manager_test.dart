@@ -310,7 +310,7 @@ void main() {
 
     group('Operation Ordering', () {
       test('should update registered entity correctly', () async {
-        await helper.database.connection.execute(
+        await helper.database.execute(
           'INSERT INTO users (name, email) VALUES (?, ?)',
           ['Existing User', 'some@email.com'],
         );

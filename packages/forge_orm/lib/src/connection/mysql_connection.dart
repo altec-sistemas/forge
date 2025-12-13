@@ -5,16 +5,15 @@ import 'package:mysql_client_plus/mysql_client_plus.dart' as mysql;
 import '../dialect/mysql_dialect.dart';
 import '../dialect/sql_dialect.dart';
 
-class MySQLDatabase implements Database {
+class MySQLDatabase extends Database {
   final String host;
   final int port;
   final String username;
   final String password;
-  final String database;
+  final String databaseName;
   final bool secure;
 
-  mysql.MySQLConnection? _connection;
-
+  mysql.MySQLConnection? _driverConnection;
   final MySqlDialect _dialect = MySqlDialect();
 
   MySQLDatabase({
@@ -22,102 +21,121 @@ class MySQLDatabase implements Database {
     required this.port,
     required this.username,
     required this.password,
-    required this.database,
+    required this.databaseName,
     this.secure = true,
   });
 
   @override
-  Future<void> connect() async {
-    if (_connection == null || _connection!.connected == false) {
-      _connection = await mysql.MySQLConnection.createConnection(
+  bool get isOpen => _driverConnection != null && _driverConnection!.connected;
+
+  @override
+  SqlDialect get dialect => _dialect;
+
+  @override
+  Future<void> open() async {
+    if (isOpen) return;
+
+    try {
+      _driverConnection = await mysql.MySQLConnection.createConnection(
         host: host,
         port: port,
         userName: username,
         password: password,
         secure: secure,
+        databaseName: databaseName,
       );
 
-      await _connection!.connect();
-      await _connection!.execute('CREATE DATABASE IF NOT EXISTS `$database`');
-      await _connection!.execute('USE `$database`');
+      await _driverConnection!.connect();
+    } catch (e, stackTrace) {
+      throw ConnectionException(
+        message: 'Failed to open MySQL database: $e',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
+    // A biblioteca mysql_client_plus já lida com seleção de DB na conexão
+    // mas se necessário: await _driverConnection!.execute('USE `$databaseName`');
   }
 
   @override
-  Connection get connection {
-    return MySQLConnection(_connection, _dialect);
+  Future<Connection> acquireConnection() async {
+    if (!isOpen) {
+      await open();
+    }
+
+    return MySQLConnectionWrapper(_driverConnection!, _dialect);
   }
 
   @override
-  SqlDialect get dialect => _dialect;
-
-  @override
-  Future<void> closeAllConnections() async {
-    if (_connection != null && _connection!.connected) {
-      try {
-        await _connection!.close();
-      } catch (_) {
-        // Ignora erros ao fechar a conexão
-      }
+  Future<void> close() async {
+    if (_driverConnection != null) {
+      await _driverConnection!.close();
+      _driverConnection = null;
     }
   }
 }
 
-class MySQLConnection implements Connection {
-  final mysql.MySQLConnection? _connection;
+class MySQLConnectionWrapper implements Connection {
+  final mysql.MySQLConnection _driver;
   final MySqlDialect _dialect;
+  EventBus? _eventBus;
 
-  late final EventBus? eventBus;
-
-  MySQLConnection(this._connection, this._dialect);
+  MySQLConnectionWrapper(this._driver, this._dialect);
 
   @override
-  bool get isConnected => _connection != null && _connection!.connected;
+  String get id => 'mysql-${identityHashCode(this)}';
 
   @override
   SqlDialect get dialect => _dialect;
 
   @override
-  set withEventBus(EventBus eventBus) {
-    this.eventBus = eventBus;
-  }
+  set withEventBus(EventBus eventBus) => _eventBus = eventBus;
 
   @override
-  Future<void> connect() async {
-    if (_connection != null && !_connection!.connected) {
-      await _connection!.connect();
-    }
-  }
-
-  @override
-  Future<void> disconnect() async {
-    if (_connection != null && _connection!.connected) {
-      await _connection!.close();
-    }
+  Future<void> close() async {
+    // Em uma implementação de pool real, aqui devolveríamos a conexão ao pool.
+    // Como estamos usando a conexão compartilhada do driver neste exemplo específico,
+    // não fechamos a conexão física aqui, apenas marcamos o wrapper como concluído se necessário.
   }
 
   @override
   Future<QueryResult> execute(String query, [List<dynamic>? parameters]) async {
+    final start = DateTime.now();
     try {
       if (parameters == null || parameters.isEmpty) {
-        return MySQLQueryResult(await _connection!.execute(query));
+        final result = await _driver.execute(query);
+        _logQuery(query, [], start);
+        return MySQLQueryResult(result);
       }
 
+      // Tratamento de parâmetros (exemplo simples)
       int index = 0;
-      final processedQuery = query.replaceAllMapped(RegExp(r'\?'), (match) {
-        return ':p${index++}';
-      });
-
+      final processedQuery = query.replaceAllMapped(
+        RegExp(r'\?'),
+        (_) => ':p${index++}',
+      );
       final processedParams = <String, dynamic>{};
       for (int i = 0; i < parameters.length; i++) {
         processedParams['p$i'] = parameters[i];
       }
 
-      return MySQLQueryResult(
-        await _connection!.execute(processedQuery, processedParams),
-      );
+      final result = await _driver.execute(processedQuery, processedParams);
+      _logQuery(query, parameters, start);
+      return MySQLQueryResult(result);
     } catch (e) {
       throw MySqlExceptionParser.parse(e, query, parameters);
+    }
+  }
+
+  void _logQuery(String query, List<dynamic> params, DateTime start) {
+    if (_eventBus != null) {
+      _eventBus!.dispatch(
+        QueryExecutedEvent(
+          query: query,
+          parameters: params,
+          duration: DateTime.now().difference(start),
+        ),
+      );
     }
   }
 
@@ -125,22 +143,15 @@ class MySQLConnection implements Connection {
   Future<T> transaction<T>(
     Future<T> Function(Connection connection) callback,
   ) async {
-    // Inicia transação explicitamente
+    // MySQL implementation specific
     await execute('START TRANSACTION');
-
     try {
-      // Cria uma nova conexão wrapper para a transação
-      final transactionConnection = MySQLConnection(_connection, _dialect);
-
-      // Executa o callback
-      final result = await callback(transactionConnection);
-
-      // Commit explícito
+      // Cria um novo wrapper que compartilha a MESMA conexão física
+      // (já que estamos dentro de uma transação na mesma conexão TCP)
+      final result = await callback(this);
       await execute('COMMIT');
-
       return result;
     } catch (e) {
-      // Rollback em caso de erro
       await execute('ROLLBACK');
       rethrow;
     }

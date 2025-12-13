@@ -77,6 +77,7 @@ class HttpBundle extends Bundle {
         httpKernel: i<HttpKernel>(),
         eventBus: i<EventBus>(),
         config: i.tryGet<HttpConfig>(),
+        injector: i,
       );
     });
   }
@@ -150,21 +151,48 @@ class HttpBundle extends Bundle {
     Injector injector,
   ) {
     return (Request request) async {
+      final context = RequestContext(request);
+
       final instance = controllerMeta.typeMetadata.captureGeneric(
         <T>() => injector.get<T>(),
       );
 
       final method = methodMeta.getMethod(instance);
 
-      if (methodMeta.typeMetadata.type == Handler) {
-        return method(request);
-      }
-
-      final arguments = await argumentResolver.resolveArgumentsFor(
-        request,
+      // Dispatch Controller Event
+      final controllerEvent = HttpKernelControllerEvent(
+        context,
+        controllerMeta,
         methodMeta,
       );
 
+      await injector.get<EventBus>().dispatch(controllerEvent);
+
+      if (controllerEvent.response != null) {
+        return controllerEvent.response!;
+      }
+
+      // If it's a direct Handler, just call it
+      if (methodMeta.typeMetadata.type == Handler) {
+        return method(context.request);
+      }
+
+      // Resolve arguments
+      final arguments = await argumentResolver.resolveArgumentsFor(
+        context.request,
+        methodMeta,
+      );
+
+      // Dispatch Controller Arguments Event
+      final argumentsEvent = HttpKernelControllerArgumentsEvent(
+        context,
+        methodMeta,
+        arguments,
+      );
+
+      await injector.get<EventBus>().dispatch(argumentsEvent);
+
+      // Call the method with resolved arguments
       final response = await Function.apply(
         method,
         arguments.positional,

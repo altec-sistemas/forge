@@ -1,0 +1,27 @@
+name: forge_cli
+description: A sample command-line application.
+version: 1.0.0
+resolution: workspace
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.8.1
+
+# Add regular dependencies here.
+dependencies:
+  analyzer: ^7.7.1 # ou versão compatível mais recente
+  args: ^2.4.2
+  glob: ^2.1.2
+  path: ^1.9.0
+  dart_style: ^3.1.1
+  forge_core: any
+  mason_logger: ^0.3.3
+  colorize: ^3.0.0
+  pool: ^1.5.2
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.24.0
+
+executables:
+  forge: forge_cli.dart

@@ -7,7 +7,10 @@ import '../entity/user.dart';
 class OrmConfig {
   @Provide()
   DatabaseConfig get databaseConfig => DatabaseConfig(
-    connection: SqliteConfig.inMemory(),
+    defaultConnectionName: 'default',
+    connections: {
+      'default': SqliteConfig.inMemory(),
+    },
   );
 
   @Boot()
@@ -16,7 +19,7 @@ class OrmConfig {
     MetadataSchemaResolver schemaResolver,
     Logger logger,
   ) async {
-    await database.connect();
+    await database.open();
 
     final migrator = Migrator(database, schemaResolver);
     await migrator.createTables([User]);

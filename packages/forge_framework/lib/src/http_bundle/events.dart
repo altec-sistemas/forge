@@ -7,12 +7,29 @@ class HttpKernelRequestEvent {
   HttpKernelRequestEvent(this.context);
 }
 
-class HttpKernelHandlerEvent {
+class HttpKernelControllerEvent {
   final RequestContext context;
-  final Handler handler;
+  final ClassMetadata controllerMetadata;
+  final MethodMetadata methodMetadata;
   Response? response;
 
-  HttpKernelHandlerEvent(this.context, this.handler);
+  HttpKernelControllerEvent(
+    this.context,
+    this.controllerMetadata,
+    this.methodMetadata,
+  );
+}
+
+class HttpKernelControllerArgumentsEvent {
+  final RequestContext context;
+  final MethodMetadata methodMetadata;
+  final ArgumentsResult arguments;
+
+  HttpKernelControllerArgumentsEvent(
+    this.context,
+    this.methodMetadata,
+    this.arguments,
+  );
 }
 
 class HttpKernelResponseEvent {
