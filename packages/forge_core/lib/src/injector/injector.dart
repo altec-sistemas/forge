@@ -265,14 +265,6 @@ class _InjectorImpl implements Injector {
     final registration = _services[key];
 
     if (registration == null) {
-      /// No registration found for the requested service
-      /// Lest try finding it in the all method
-      final allInstances = all<T>();
-
-      if (allInstances.isNotEmpty) {
-        return allInstances.first;
-      }
-
       throw ServiceNotFoundException(
         T,
         resolutionStack: const [],
@@ -438,14 +430,6 @@ class _ResolutionContextInjector implements Injector {
     final registration = _actualInjector._services[key];
 
     if (registration == null) {
-      /// No registration found for the requested service
-      /// Lest try finding it in the all method
-      final allInstances = all<T>();
-
-      if (allInstances.isNotEmpty) {
-        return allInstances.first;
-      }
-
       throw ServiceNotFoundException(
         T,
         resolutionStack: _resolutionStack,
