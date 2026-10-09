@@ -144,13 +144,8 @@ void main() {
           ..name = 'Test'
           ..email = 'test@example.com';
 
-        expect(
-          () async {
-            helper.orm.entityManager.remove(user);
-            await helper.orm.entityManager.flush();
-          },
-          returnsNormally,
-        );
+        helper.orm.entityManager.remove(user);
+        await helper.orm.entityManager.flush();
       });
     });
 

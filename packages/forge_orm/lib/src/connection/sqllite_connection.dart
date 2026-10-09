@@ -92,7 +92,9 @@ class SqliteConnection implements Connection {
 
   @override
   Future<void> close() async {
-    _database.dispose();
+    // The physical database is shared and owned by [SqliteDatabase].
+    // Database.execute/transaction release the wrapper after each call;
+    // disposing here closes the database for every later statement.
   }
 
   @override
